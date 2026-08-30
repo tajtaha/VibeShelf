@@ -9,48 +9,59 @@ export default function App() {
   const [libraryGames, setLibraryGames] = useState([]);
   const [tab, setTab] = useState("GamesList");
 
+  function showGameDetails(gameId) {
+    setSelectedGameId(gameId);
+    setDetailsTab(true);
+  }
+
   return (
-    <div className="App">
+    <div>
       <NavBar setTab={setTab} />
-      {tab == "Library" ? <Library libraryGames={libraryGames} /> : null}
-      {tab == "GamesList" ? (
-        <GamesList
-          setDetailsTab={setDetailsTab}
-          setSelectedGameId={setSelectedGameId}
-          games={games}
-          setGames={setGames}
-          setLibraryGames={setLibraryGames}
-          libraryGames={libraryGames}
-        />
-      ) : null}
-      {detailsTab && selectedGameId && (
-        <GameDetails
-          games={games}
-          gameId={selectedGameId}
-          setDetailsTab={setDetailsTab}
-        />
-      )}
+      <div className="App">
+        {tab == "Library" ? (
+          <Library
+            libraryGames={libraryGames}
+            setLibraryGames={setLibraryGames}
+            showGameDetails={showGameDetails}
+          />
+        ) : null}
+        {tab == "GamesList" ? (
+          <GamesList
+            showGameDetails={showGameDetails}
+            games={games}
+            setGames={setGames}
+            setLibraryGames={setLibraryGames}
+            libraryGames={libraryGames}
+          />
+        ) : null}
+        {detailsTab && selectedGameId && (
+          <GameDetails
+            games={games}
+            gameId={selectedGameId}
+            setDetailsTab={setDetailsTab}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
 function NavBar({ setTab }) {
   return (
-    <div>
+    <nav className="nav-bar">
       <button onClick={() => setTab("GamesList")}>Home</button>
       <button onClick={() => setTab("Library")}>Library</button>
       <button onClick={() => setTab("Lists")}>Lists</button>
-    </div>
+    </nav>
   );
 }
 
 function GamesList({
-  setDetailsTab,
   games,
   setGames,
-  setSelectedGameId,
   setLibraryGames,
   libraryGames,
+  showGameDetails,
 }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -102,11 +113,6 @@ function GamesList({
     return () => controller.abort();
   }, [page, ordering, searchQuery, sort, setGames]);
 
-  function showGameDetails(gameId) {
-    setSelectedGameId(gameId);
-    setDetailsTab(true);
-  }
-
   return (
     <main className="games-area">
       <header className="page-header">
@@ -128,33 +134,54 @@ function GamesList({
       />
 
       <div className="game-grid">
-        {games.map((game, index) => (
-          <article
-            className="game-card"
-            key={game.id}
-            onClick={() => showGameDetails(game.id)}
-          >
-            <button
-              className="add-game-button"
-              type="button"
-              aria-label={`Add ${game.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                setLibraryGames((previousGames) => [...previousGames, game]);
-              }}
+        {games.map((game, index) => {
+          const isInLibrary = libraryGames.some(
+            (libraryGame) => libraryGame.id === game.id,
+          );
+
+          return (
+            <article
+              className="game-card"
+              key={game.id}
+              onClick={() => showGameDetails(game.id)}
             >
-              +
-            </button>
-            <img src={game.background_image} alt={game.name} />
-            <div className="game-card-content">
-              <span className="card-number">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <h2>{game.name}</h2>
-              <p>{game.released || "Release date unknown"}</p>
-            </div>
-          </article>
-        ))}
+              <button
+                className={`add-game-button${isInLibrary ? " is-in-library" : ""}`}
+                type="button"
+                aria-label={
+                  isInLibrary
+                    ? `${game.name} is already in your library`
+                    : `Add ${game.name}`
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  event.currentTarget.blur();
+
+                  if (isInLibrary) {
+                    return;
+                  }
+
+                  setLibraryGames((previousGames) => [...previousGames, game]);
+                }}
+              >
+                {isInLibrary ? "In library" : "+"}
+              </button>
+              <img
+                src={
+                  game.background_image || "assets/No-Image-Placeholder-Light"
+                }
+                alt={game.name}
+              />
+              <div className="game-card-content">
+                <span className="card-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <h2>{game.name}</h2>
+                <p>{game.released || "Release date unknown"}</p>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       <button className="load-more" onClick={handleLoadMore} disabled={loading}>
@@ -248,7 +275,7 @@ function GameDetails({ gameId, setDetailsTab, games }) {
       </button>
       <img
         className="details-image"
-        src={game.background_image}
+        src={game.background_image || "assets/No-Image-Placeholder-Light"}
         alt={game.name}
       />
       <div className="details-content">
@@ -314,12 +341,60 @@ function GameDetails({ gameId, setDetailsTab, games }) {
   );
 }
 
-function Library({ libraryGames }) {
+function Library({ libraryGames, setLibraryGames, showGameDetails }) {
   return (
-    <div>
-      {libraryGames.map((game) => (
-        <p key={game.id}>{game.name}</p>
-      ))}
-    </div>
+    <main className="library-area">
+      <header className="page-header">
+        <div>
+          <p className="eyebrow">Your collection</p>
+          <h1>My Library</h1>
+        </div>
+
+        <span className="game-count">{libraryGames.length} games</span>
+      </header>
+
+      {libraryGames.length === 0 ? (
+        <div className="empty-library">
+          <h2>Your library is empty</h2>
+          <p>Add games from the home page and they'll appear here.</p>
+        </div>
+      ) : (
+        <div className="library-grid">
+          {libraryGames.map((game) => (
+            <article
+              className="library-card"
+              key={game.id}
+              onClick={() => showGameDetails(game.id)}
+            >
+              <img
+                src={
+                  game.background_image || "assets/No-Image-Placeholder-Light"
+                }
+                alt={game.name}
+              />
+
+              <div className="library-card-content">
+                <h2>{game.name}</h2>
+
+                <p>{game.released || "Release date unknown"}</p>
+
+                <button
+                  className="remove-game-button"
+                  onClick={() =>
+                    setLibraryGames((previousGames) =>
+                      previousGames.filter(
+                        (libraryGame) => libraryGame.id !== game.id,
+                      ),
+                    )
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </main>
   );
 }

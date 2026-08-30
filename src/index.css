@@ -22,3 +22,8 @@ input,
 select {
   font: inherit;
 }
+
+/* Remove default button styles */
+button {
+  cursor: pointer;
+}
