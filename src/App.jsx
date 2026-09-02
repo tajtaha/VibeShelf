@@ -8,6 +8,19 @@ export default function App() {
   const [games, setGames] = useState([]);
   const [libraryGames, setLibraryGames] = useState([]);
   const [tab, setTab] = useState("GamesList");
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [showAddList, setShowAddList] = useState(false);
+  const [lists, setLists] = useState([
+    {
+      title: "finished",
+      games: [],
+    },
+    {
+      title: "dropped",
+      games: [],
+    },
+    { title: "finished", games: [] },
+  ]);
 
   function showGameDetails(gameId) {
     setSelectedGameId(gameId);
@@ -40,6 +53,23 @@ export default function App() {
             gameId={selectedGameId}
             setDetailsTab={setDetailsTab}
           />
+        )}
+        {tab == "Lists" ? (
+          <Lists
+            lists={lists}
+            setShowAddGame={setShowAddGame}
+            setShowAddList={setShowAddList}
+          />
+        ) : null}
+        {showAddGame && (
+          <AddGameToList
+            setShowAddGame={setShowAddGame}
+            libraryGames={libraryGames}
+            setGames={setGames}
+          />
+        )}
+        {showAddList && (
+          <AddList setShowAddList={setShowAddList} setLists={setLists} />
         )}
       </div>
     </div>
@@ -166,6 +196,7 @@ function GamesList({
               >
                 {isInLibrary ? "In library" : "+"}
               </button>
+              <button>Add to List</button>
               <img
                 src={
                   game.background_image || "assets/No-Image-Placeholder-Light"
@@ -396,5 +427,67 @@ function Library({ libraryGames, setLibraryGames, showGameDetails }) {
         </div>
       )}
     </main>
+  );
+}
+
+function Lists({ lists, setShowAddGame, setShowAddList }) {
+  return (
+    <div>
+      <button onClick={() => setShowAddGame(true)}>Add a game +</button>
+      <button onClick={() => setShowAddList(true)}>Add a list</button>
+      {lists.map((list) => (
+        <div>
+          <h2>{list}</h2>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AddGameToList({ setShowAddGame, libraryGames }) {
+  return (
+    <div>
+      <button onClick={() => setShowAddGame(false)}>Back</button>
+
+      <div></div>
+      {libraryGames.map((game) => (
+        <div key={game.id}>
+          <img src={game.background_image} alt={game.name} />
+          <h2>{game.name}</h2>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AddList({ setShowAddList, setLists }) {
+  const [listTitle, setListTitle] = useState("");
+
+  function addList(listTitle) {
+    setLists((prevLists) =>
+      prevLists.map((list) => {
+        if (list.title !== listTitle) return list;
+
+        return { ...list, title: listTitle };
+      }),
+    );
+  }
+
+  return (
+    <div>
+      <button onClick={() => setShowAddList(false)}>Close</button>
+
+      <input
+        placeholder="List title"
+        onChange={(e) => setListTitle(e.target.value)}
+      />
+      <button
+        onClick={() => {
+          addList(listTitle);
+        }}
+      >
+        Add
+      </button>
+    </div>
   );
 }
