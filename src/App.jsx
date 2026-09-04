@@ -19,7 +19,7 @@ export default function App() {
       title: "dropped",
       games: [],
     },
-    { title: "finished", games: [] },
+    { title: "wishlist", games: [] },
   ]);
 
   function showGameDetails(gameId) {
@@ -27,9 +27,24 @@ export default function App() {
     setDetailsTab(true);
   }
 
+  function handleAddToList(listTitle, game) {
+    setLists((previousLists) =>
+      previousLists.map((list) => {
+        if (list.title === listTitle) {
+          return {
+            ...list,
+            games: [...list.games, game],
+          };
+        }
+
+        return list;
+      }),
+    );
+  }
+
   return (
     <div>
-      <NavBar setTab={setTab} />
+      <NavBar setTab={setTab} setDetailsTab={setDetailsTab} />
       <div className="App">
         {tab == "Library" ? (
           <Library
@@ -45,6 +60,9 @@ export default function App() {
             setGames={setGames}
             setLibraryGames={setLibraryGames}
             libraryGames={libraryGames}
+            setShowAddGame={setShowAddGame}
+            lists={lists}
+            onAddToList={handleAddToList}
           />
         ) : null}
         {detailsTab && selectedGameId && (
@@ -52,6 +70,7 @@ export default function App() {
             games={games}
             gameId={selectedGameId}
             setDetailsTab={setDetailsTab}
+            onAddToList={handleAddToList}
           />
         )}
         {tab == "Lists" ? (
@@ -76,12 +95,16 @@ export default function App() {
   );
 }
 
-function NavBar({ setTab }) {
+function NavBar({ setTab, setDetailsTab }) {
+  function changeTab(tabName) {
+    setDetailsTab(false);
+    setTab(tabName);
+  }
   return (
     <nav className="nav-bar">
-      <button onClick={() => setTab("GamesList")}>Home</button>
-      <button onClick={() => setTab("Library")}>Library</button>
-      <button onClick={() => setTab("Lists")}>Lists</button>
+      <button onClick={() => changeTab("GamesList")}>Home</button>
+      <button onClick={() => changeTab("Library")}>Library</button>
+      <button onClick={() => changeTab("Lists")}>Lists</button>
     </nav>
   );
 }
@@ -92,6 +115,8 @@ function GamesList({
   setLibraryGames,
   libraryGames,
   showGameDetails,
+  onAddToList,
+  lists,
 }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -196,7 +221,22 @@ function GamesList({
               >
                 {isInLibrary ? "In library" : "+"}
               </button>
-              <button>Add to List</button>
+              <div className="flyout">
+                <button type="button">Add to List</button>
+
+                <div className="flyout-menu">
+                  {lists.map((list) => (
+                    <button
+                      key={list.title}
+                      type="button"
+                      onClick={() => onAddToList(list.title, game)}
+                    >
+                      {list.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <img
                 src={
                   game.background_image || "assets/No-Image-Placeholder-Light"
@@ -432,15 +472,44 @@ function Library({ libraryGames, setLibraryGames, showGameDetails }) {
 
 function Lists({ lists, setShowAddGame, setShowAddList }) {
   return (
-    <div>
-      <button onClick={() => setShowAddGame(true)}>Add a game +</button>
-      <button onClick={() => setShowAddList(true)}>Add a list</button>
-      {lists.map((list) => (
+    <main className="lists-area">
+      <header className="lists-header">
         <div>
-          <h2>{list}</h2>
+          <p className="eyebrow">Your collection</p>
+          <h1>Game lists</h1>
         </div>
+        <div className="lists-actions">
+          <button
+            className="secondary-button"
+            onClick={() => setShowAddGame(true)}
+          >
+            Add a game +
+          </button>
+          <button
+            className="primary-button"
+            onClick={() => setShowAddList(true)}
+          >
+            Add a list
+          </button>
+        </div>
+      </header>
+      {lists.map((list) => (
+        <section className="list-panel" key={list.title}>
+          <h2>{list.title}</h2>
+          <div className="list-games">
+            {list.games.map((game) => (
+              <div className="list-game" key={game.id}>
+                <img src={game.background_image} alt={game.name} />
+                <p>{game.name}</p>
+              </div>
+            ))}
+            {list.games.length === 0 && (
+              <p className="empty-list">No games in this list yet.</p>
+            )}
+          </div>
+        </section>
       ))}
-    </div>
+    </main>
   );
 }
 
@@ -463,31 +532,42 @@ function AddGameToList({ setShowAddGame, libraryGames }) {
 function AddList({ setShowAddList, setLists }) {
   const [listTitle, setListTitle] = useState("");
 
-  function addList(listTitle) {
-    setLists((prevLists) =>
-      prevLists.map((list) => {
-        if (list.title !== listTitle) return list;
+  function handleAddList(listTitle) {
+    setLists((previousLists) => [
+      ...previousLists,
+      {
+        title: listTitle,
+        games: [],
+      },
+    ]);
 
-        return { ...list, title: listTitle };
-      }),
-    );
+    setShowAddList(false);
   }
-
   return (
-    <div>
-      <button onClick={() => setShowAddList(false)}>Close</button>
+    <section className="add-list-panel">
+      <div className="add-list-heading">
+        <div>
+          <p className="eyebrow">Create a collection</p>
+          <h2>New list</h2>
+        </div>
+        <button className="close-button" onClick={() => setShowAddList(false)}>
+          Close
+        </button>
+      </div>
 
       <input
+        className="list-title-input"
         placeholder="List title"
         onChange={(e) => setListTitle(e.target.value)}
       />
       <button
+        className="primary-button"
         onClick={() => {
-          addList(listTitle);
+          handleAddList(listTitle);
         }}
       >
         Add
       </button>
-    </div>
+    </section>
   );
 }
