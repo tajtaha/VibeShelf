@@ -618,6 +618,13 @@ select,
   color: #236b56;
 }
 
+.flyout-menu button:last-child {
+  margin-top: 4px;
+  border-top: 1px solid #e4ebe5;
+  color: #236b56;
+  font-weight: 700;
+}
+
 .lists-area {
   min-width: 0;
 }
@@ -656,6 +663,24 @@ select,
   text-transform: capitalize;
 }
 
+.list-panel > button {
+  float: right;
+  margin-top: -42px;
+  padding: 7px 10px;
+  border: 1px solid #e0b7ad;
+  border-radius: 5px;
+  background: #fff;
+  color: #a34f3e;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.list-panel > button:hover {
+  border-color: #a34f3e;
+  background: #fff7f5;
+}
+
 .list-games {
   display: flex;
   flex-wrap: wrap;
@@ -685,6 +710,26 @@ select,
   margin: 0;
   color: #586660;
   font-size: 0.85rem;
+}
+
+.list-game p {
+  flex: 1;
+}
+
+.list-game > button {
+  padding: 6px 8px;
+  border: 1px solid #e0b7ad;
+  border-radius: 4px;
+  background: #fff;
+  color: #a34f3e;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.list-game > button:hover {
+  border-color: #a34f3e;
+  background: #fff7f5;
 }
 
 .add-list-panel {

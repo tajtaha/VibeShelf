@@ -6,21 +6,18 @@ export default function App() {
   const [detailsTab, setDetailsTab] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [games, setGames] = useState([]);
-  const [libraryGames, setLibraryGames] = useState([]);
+  const localLibraryGames =
+    JSON.parse(localStorage.getItem("libraryGames")) || [];
+  const [libraryGames, setLibraryGames] = useState(localLibraryGames);
   const [tab, setTab] = useState("GamesList");
-  const [showAddGame, setShowAddGame] = useState(false);
   const [showAddList, setShowAddList] = useState(false);
-  const [lists, setLists] = useState([
-    {
-      title: "finished",
-      games: [],
-    },
-    {
-      title: "dropped",
-      games: [],
-    },
-    { title: "wishlist", games: [] },
-  ]);
+  const localLists = JSON.parse(localStorage.getItem("lists")) || [];
+  const [lists, setLists] = useState(localLists);
+
+  useEffect(() => {
+    localStorage.setItem("lists", JSON.stringify(lists));
+    localStorage.setItem("libraryGames", JSON.stringify(libraryGames));
+  }, [lists, libraryGames]);
 
   function showGameDetails(gameId) {
     setSelectedGameId(gameId);
@@ -42,6 +39,47 @@ export default function App() {
     );
   }
 
+  function handleAddList(listTitle) {
+    setLists((previousLists) => [
+      ...previousLists,
+      {
+        title: listTitle,
+        games: [],
+      },
+    ]);
+
+    setShowAddList(false);
+  }
+
+  function handleDeleteFromList(listTitle, gameId) {
+    setLists((previousLists) =>
+      previousLists.map((list) => {
+        if (list.title === listTitle) {
+          return {
+            ...list,
+            games: list.games.filter((game) => game.id !== gameId),
+          };
+        }
+        return list;
+      }),
+    );
+  }
+
+  function handleDeleteList(listTitle) {
+    setLists((previousLists) =>
+      previousLists.filter((list) => list.title !== listTitle),
+    );
+
+    localStorage.setItem("lists", JSON.stringify(lists));
+  }
+
+  function handleDeleteLibraryGame(gameId) {
+    setLibraryGames((previousGames) =>
+      previousGames.filter((libraryGame) => libraryGame.id !== gameId),
+    );
+    localStorage.setItem("libraryGames", JSON.stringify([libraryGames]));
+  }
+
   return (
     <div>
       <NavBar setTab={setTab} setDetailsTab={setDetailsTab} />
@@ -51,6 +89,7 @@ export default function App() {
             libraryGames={libraryGames}
             setLibraryGames={setLibraryGames}
             showGameDetails={showGameDetails}
+            onDeleteLibraryGame={handleDeleteLibraryGame}
           />
         ) : null}
         {tab == "GamesList" ? (
@@ -60,9 +99,10 @@ export default function App() {
             setGames={setGames}
             setLibraryGames={setLibraryGames}
             libraryGames={libraryGames}
-            setShowAddGame={setShowAddGame}
             lists={lists}
             onAddToList={handleAddToList}
+            onAddList={handleAddList}
+            setShowAddList={setShowAddList}
           />
         ) : null}
         {detailsTab && selectedGameId && (
@@ -76,19 +116,14 @@ export default function App() {
         {tab == "Lists" ? (
           <Lists
             lists={lists}
-            setShowAddGame={setShowAddGame}
             setShowAddList={setShowAddList}
+            showGameDetails={showGameDetails}
+            onDeleteFromList={handleDeleteFromList}
+            onDeleteList={handleDeleteList}
           />
         ) : null}
-        {showAddGame && (
-          <AddGameToList
-            setShowAddGame={setShowAddGame}
-            libraryGames={libraryGames}
-            setGames={setGames}
-          />
-        )}
         {showAddList && (
-          <AddList setShowAddList={setShowAddList} setLists={setLists} />
+          <AddList setShowAddList={setShowAddList} onAddList={handleAddList} />
         )}
       </div>
     </div>
@@ -117,6 +152,7 @@ function GamesList({
   showGameDetails,
   onAddToList,
   lists,
+  setShowAddList,
 }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -217,11 +253,19 @@ function GamesList({
                   }
 
                   setLibraryGames((previousGames) => [...previousGames, game]);
+
+                  localStorage.setItem(
+                    "libraryGames",
+                    JSON.stringify([libraryGames]),
+                  );
                 }}
               >
                 {isInLibrary ? "In library" : "+"}
               </button>
-              <div className="flyout">
+              <div
+                className="flyout"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <button type="button">Add to List</button>
 
                 <div className="flyout-menu">
@@ -234,6 +278,9 @@ function GamesList({
                       {list.title}
                     </button>
                   ))}
+                  <button onClick={() => setShowAddList(true)} type="button">
+                    New List +
+                  </button>
                 </div>
               </div>
 
@@ -412,7 +459,7 @@ function GameDetails({ gameId, setDetailsTab, games }) {
   );
 }
 
-function Library({ libraryGames, setLibraryGames, showGameDetails }) {
+function Library({ libraryGames, onDeleteLibraryGame, showGameDetails }) {
   return (
     <main className="library-area">
       <header className="page-header">
@@ -451,13 +498,10 @@ function Library({ libraryGames, setLibraryGames, showGameDetails }) {
 
                 <button
                   className="remove-game-button"
-                  onClick={() =>
-                    setLibraryGames((previousGames) =>
-                      previousGames.filter(
-                        (libraryGame) => libraryGame.id !== game.id,
-                      ),
-                    )
-                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteLibraryGame(game.id);
+                  }}
                 >
                   Remove
                 </button>
@@ -470,7 +514,13 @@ function Library({ libraryGames, setLibraryGames, showGameDetails }) {
   );
 }
 
-function Lists({ lists, setShowAddGame, setShowAddList }) {
+function Lists({
+  lists,
+  setShowAddList,
+  showGameDetails,
+  onDeleteFromList,
+  onDeleteList,
+}) {
   return (
     <main className="lists-area">
       <header className="lists-header">
@@ -479,12 +529,6 @@ function Lists({ lists, setShowAddGame, setShowAddList }) {
           <h1>Game lists</h1>
         </div>
         <div className="lists-actions">
-          <button
-            className="secondary-button"
-            onClick={() => setShowAddGame(true)}
-          >
-            Add a game +
-          </button>
           <button
             className="primary-button"
             onClick={() => setShowAddList(true)}
@@ -496,11 +540,31 @@ function Lists({ lists, setShowAddGame, setShowAddList }) {
       {lists.map((list) => (
         <section className="list-panel" key={list.title}>
           <h2>{list.title}</h2>
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteList(list.title);
+            }}
+          >
+            Remove List
+          </button>
           <div className="list-games">
             {list.games.map((game) => (
-              <div className="list-game" key={game.id}>
+              <div
+                className="list-game"
+                key={game.id}
+                onClick={() => showGameDetails(game.id)}
+              >
                 <img src={game.background_image} alt={game.name} />
                 <p>{game.name}</p>
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteFromList(list.title, game.id);
+                  }}
+                >
+                  Remove
+                </button>
               </div>
             ))}
             {list.games.length === 0 && (
@@ -513,36 +577,9 @@ function Lists({ lists, setShowAddGame, setShowAddList }) {
   );
 }
 
-function AddGameToList({ setShowAddGame, libraryGames }) {
-  return (
-    <div>
-      <button onClick={() => setShowAddGame(false)}>Back</button>
-
-      <div></div>
-      {libraryGames.map((game) => (
-        <div key={game.id}>
-          <img src={game.background_image} alt={game.name} />
-          <h2>{game.name}</h2>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AddList({ setShowAddList, setLists }) {
+function AddList({ setShowAddList, onAddList }) {
   const [listTitle, setListTitle] = useState("");
 
-  function handleAddList(listTitle) {
-    setLists((previousLists) => [
-      ...previousLists,
-      {
-        title: listTitle,
-        games: [],
-      },
-    ]);
-
-    setShowAddList(false);
-  }
   return (
     <section className="add-list-panel">
       <div className="add-list-heading">
@@ -563,7 +600,7 @@ function AddList({ setShowAddList, setLists }) {
       <button
         className="primary-button"
         onClick={() => {
-          handleAddList(listTitle);
+          onAddList(listTitle);
         }}
       >
         Add
