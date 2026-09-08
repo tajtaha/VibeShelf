@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getGames } from "./services/gamesApi";
+import StarRating from "./StarRating.jsx";
 import "./App.css";
 
 export default function App() {
@@ -13,6 +14,11 @@ export default function App() {
   const [showAddList, setShowAddList] = useState(false);
   const localLists = JSON.parse(localStorage.getItem("lists")) || [];
   const [lists, setLists] = useState(localLists);
+  const [userRating, setUserRating] = useState({});
+  const [hoursPlayed, setHoursPlayed] = useState({});
+  const [dateStarted, setDateStarted] = useState({});
+  const [dateFinished, setDateFinished] = useState({});
+  const [note, setNote] = useState({});
 
   useEffect(() => {
     localStorage.setItem("lists", JSON.stringify(lists));
@@ -25,6 +31,16 @@ export default function App() {
   }
 
   function handleAddToList(listTitle, game) {
+    if (
+      lists.some(
+        (list) =>
+          list.title === listTitle && list.games.some((g) => g.id === game.id),
+      )
+    ) {
+      alert("This game is already in the list.");
+      return;
+    }
+
     setLists((previousLists) =>
       previousLists.map((list) => {
         if (list.title === listTitle) {
@@ -40,6 +56,15 @@ export default function App() {
   }
 
   function handleAddList(listTitle) {
+    if (listTitle.trim() === "") {
+      return;
+    }
+
+    if (lists.some((list) => list.title === listTitle)) {
+      alert("A list with this title already exists.");
+      return;
+    }
+
     setLists((previousLists) => [
       ...previousLists,
       {
@@ -111,6 +136,16 @@ export default function App() {
             gameId={selectedGameId}
             setDetailsTab={setDetailsTab}
             onAddToList={handleAddToList}
+            setUserRating={setUserRating}
+            note={note}
+            dateFinished={dateFinished}
+            dateStarted={dateStarted}
+            setNote={setNote}
+            setDateFinished={setDateFinished}
+            setDateStarted={setDateStarted}
+            userRating={userRating}
+            hoursPlayed={hoursPlayed}
+            setHoursPlayed={setHoursPlayed}
           />
         )}
         {tab == "Lists" ? (
@@ -376,7 +411,21 @@ function SearchBar({
   );
 }
 
-function GameDetails({ gameId, setDetailsTab, games }) {
+function GameDetails({
+  gameId,
+  setDetailsTab,
+  games,
+  setUserRating,
+  hoursPlayed,
+  setHoursPlayed,
+  note,
+  dateFinished,
+  dateStarted,
+  setNote,
+  setDateFinished,
+  setDateStarted,
+  userRating,
+}) {
   const game = games.find((item) => item.id === gameId);
 
   if (!game) {
@@ -444,16 +493,19 @@ function GameDetails({ gameId, setDetailsTab, games }) {
             <dd>{listValues(game.tags)}</dd>
           </div>
         </dl>
-        {game.website && (
-          <a
-            className="website-link"
-            href={game.website}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Visit official website ↗
-          </a>
-        )}
+        <PersonalDetails
+          setUserRating={setUserRating}
+          selectedGameId={gameId}
+          hoursPlayed={hoursPlayed}
+          setHoursPlayed={setHoursPlayed}
+          note={note}
+          dateFinished={dateFinished}
+          dateStarted={dateStarted}
+          setNote={setNote}
+          setDateFinished={setDateFinished}
+          setDateStarted={setDateStarted}
+          userRating={userRating}
+        />
       </div>
     </aside>
   );
@@ -606,5 +658,77 @@ function AddList({ setShowAddList, onAddList }) {
         Add
       </button>
     </section>
+  );
+}
+
+function PersonalDetails({
+  setUserRating,
+  userRating,
+  selectedGameId,
+  setHoursPlayed,
+  hoursPlayed,
+  note,
+  dateFinished,
+  dateStarted,
+  setNote,
+  setDateFinished,
+  setDateStarted,
+}) {
+  return (
+    <div>
+      <StarRating
+        maxRating={10}
+        size={24}
+        defaultRating={userRating[selectedGameId] || 0}
+        onSetRating={(rating) =>
+          setUserRating((previousRatings) => ({
+            ...previousRatings,
+            [selectedGameId]: rating,
+          }))
+        }
+      />
+      <input
+        placeholder="Hours Played"
+        value={hoursPlayed[selectedGameId] || ""}
+        onChange={(e) =>
+          setHoursPlayed((previousHoursPlayed) => ({
+            ...previousHoursPlayed,
+            [selectedGameId]: e.target.value,
+          }))
+        }
+        type="number"
+      />
+      <input
+        placeholder="Date Started"
+        value={dateStarted[selectedGameId] || ""}
+        onChange={(e) =>
+          setDateStarted((previousDateStarted) => ({
+            ...previousDateStarted,
+            [selectedGameId]: e.target.value,
+          }))
+        }
+      />
+      <input
+        placeholder="Date Finished"
+        value={dateFinished[selectedGameId] || ""}
+        onChange={(e) =>
+          setDateFinished((previousDateFinished) => ({
+            ...previousDateFinished,
+            [selectedGameId]: e.target.value,
+          }))
+        }
+      />
+
+      <input
+        placeholder="Note"
+        value={note[selectedGameId] || ""}
+        onChange={(e) =>
+          setNote((previousNote) => ({
+            ...previousNote,
+            [selectedGameId]: e.target.value,
+          }))
+        }
+      />
+    </div>
   );
 }
