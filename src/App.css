@@ -259,6 +259,118 @@ select,
   box-shadow: 0 18px 40px rgba(38, 57, 47, 0.1);
 }
 
+.personal-details {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #dbe1dc;
+}
+
+.personal-details-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.personal-details h3 {
+  margin: 0;
+  color: #20282c;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+}
+
+.reset-rating-button {
+  border: 1px solid #cbd5cd;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #718078;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reset-rating-button:hover,
+.reset-rating-button:focus-visible {
+  border-color: #236b56;
+  color: #236b56;
+}
+
+.rating-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid #e0e6e0;
+  border-radius: 6px;
+  background: #f8faf7;
+}
+
+.rating-field > div {
+  gap: 5px !important;
+}
+
+.rating-field > div span {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #718078;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.personal-details-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.personal-details-fields label {
+  min-width: 0;
+}
+
+.personal-details-fields input,
+.personal-details-fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #cbd5cd;
+  border-radius: 5px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #20282c;
+  font: inherit;
+}
+
+.personal-details-fields input {
+  min-height: 42px;
+}
+
+.personal-details-fields textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.personal-details-fields input:focus,
+.personal-details-fields textarea:focus {
+  outline: 2px solid rgba(35, 107, 86, 0.2);
+  border-color: #236b56;
+}
+
+.note-field {
+  grid-column: 1 / -1;
+}
+
 .back-button {
   margin: 16px 16px 0;
   padding: 9px 12px;
@@ -323,6 +435,116 @@ select,
   color: #586660;
   font-size: 0.84rem;
   line-height: 1.4;
+}
+
+.personal-details {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #e0e6e1;
+}
+
+.personal-details-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.personal-details h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+}
+
+.personal-details .eyebrow {
+  margin-bottom: 5px;
+}
+
+.reset-rating-button {
+  padding: 7px 10px;
+  border: 1px solid #d5ddd6;
+  border-radius: 5px;
+  background: #f8faf8;
+  color: #718078;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reset-rating-button:hover,
+.reset-rating-button:focus-visible {
+  border-color: #d06b42;
+  background: #fff7f5;
+  color: #a34f3e;
+}
+
+.rating-field {
+  padding: 14px;
+  border: 1px solid #e0e6e1;
+  border-radius: 6px;
+  background: #f8faf8;
+}
+
+.rating-field .StarRating,
+.rating-field > div:last-child {
+  margin-top: 6px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #718078;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.personal-details-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.personal-details-fields label {
+  min-width: 0;
+}
+
+.personal-details-fields input,
+.personal-details-fields textarea {
+  width: 100%;
+  border: 1px solid #cbd5cd;
+  border-radius: 5px;
+  background: #fff;
+  color: #20282c;
+}
+
+.personal-details-fields input {
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.personal-details-fields textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.personal-details-fields input:focus,
+.personal-details-fields textarea:focus {
+  outline: 2px solid rgba(35, 107, 86, 0.2);
+  border-color: #236b56;
+}
+
+.personal-details-fields input::placeholder,
+.personal-details-fields textarea::placeholder {
+  color: #aab6ae;
+}
+
+.note-field {
+  grid-column: 1 / -1;
 }
 
 .website-link {

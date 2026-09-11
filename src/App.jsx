@@ -14,16 +14,34 @@ export default function App() {
   const [showAddList, setShowAddList] = useState(false);
   const localLists = JSON.parse(localStorage.getItem("lists")) || [];
   const [lists, setLists] = useState(localLists);
-  const [userRating, setUserRating] = useState({});
-  const [hoursPlayed, setHoursPlayed] = useState({});
-  const [dateStarted, setDateStarted] = useState({});
-  const [dateFinished, setDateFinished] = useState({});
-  const [note, setNote] = useState({});
+  const [userRating, setUserRating] = useState(
+    () => JSON.parse(localStorage.getItem("userRating")) || {},
+  );
+  const [hoursPlayed, setHoursPlayed] = useState(
+    () => JSON.parse(localStorage.getItem("hoursPlayed")) || {},
+  );
+  const [dateStarted, setDateStarted] = useState(
+    () => JSON.parse(localStorage.getItem("dateStarted")) || {},
+  );
+  const [dateFinished, setDateFinished] = useState(
+    () => JSON.parse(localStorage.getItem("dateFinished")) || {},
+  );
+  const [note, setNote] = useState(
+    () => JSON.parse(localStorage.getItem("note")) || {},
+  );
 
   useEffect(() => {
     localStorage.setItem("lists", JSON.stringify(lists));
     localStorage.setItem("libraryGames", JSON.stringify(libraryGames));
   }, [lists, libraryGames]);
+
+  useEffect(() => {
+    localStorage.setItem("userRating", JSON.stringify(userRating));
+    localStorage.setItem("hoursPlayed", JSON.stringify(hoursPlayed));
+    localStorage.setItem("note", JSON.stringify(note));
+    localStorage.setItem("dateFinished", JSON.stringify(dateFinished));
+    localStorage.setItem("dateStarted", JSON.stringify(dateStarted));
+  }, [userRating, hoursPlayed, note, dateFinished, dateStarted]);
 
   function showGameDetails(gameId) {
     setSelectedGameId(gameId);
@@ -34,7 +52,8 @@ export default function App() {
     if (
       lists.some(
         (list) =>
-          list.title === listTitle && list.games.some((g) => g.id === game.id),
+          list.title === listTitle &&
+          list.games.some((item) => item.id === game.id),
       )
     ) {
       alert("This game is already in the list.");
@@ -42,51 +61,36 @@ export default function App() {
     }
 
     setLists((previousLists) =>
-      previousLists.map((list) => {
-        if (list.title === listTitle) {
-          return {
-            ...list,
-            games: [...list.games, game],
-          };
-        }
-
-        return list;
-      }),
+      previousLists.map((list) =>
+        list.title === listTitle
+          ? { ...list, games: [...list.games, game] }
+          : list,
+      ),
     );
   }
 
   function handleAddList(listTitle) {
-    if (listTitle.trim() === "") {
-      return;
-    }
-
-    if (lists.some((list) => list.title === listTitle)) {
-      alert("A list with this title already exists.");
+    if (
+      listTitle.trim() === "" ||
+      lists.some((list) => list.title === listTitle)
+    ) {
       return;
     }
 
     setLists((previousLists) => [
       ...previousLists,
-      {
-        title: listTitle,
-        games: [],
-      },
+      { title: listTitle, games: [] },
     ]);
-
     setShowAddList(false);
   }
 
   function handleDeleteFromList(listTitle, gameId) {
     setLists((previousLists) =>
-      previousLists.map((list) => {
-        if (list.title === listTitle) {
-          return {
-            ...list,
-            games: list.games.filter((game) => game.id !== gameId),
-          };
-        }
-        return list;
-      }),
+      previousLists.map((list) =>
+        list.title === listTitle
+          ? { ...list, games: list.games.filter((game) => game.id !== gameId) }
+          : list,
+      ),
     );
   }
 
@@ -94,8 +98,6 @@ export default function App() {
     setLists((previousLists) =>
       previousLists.filter((list) => list.title !== listTitle),
     );
-
-    localStorage.setItem("lists", JSON.stringify(lists));
   }
 
   function handleDeleteLibraryGame(gameId) {
@@ -512,6 +514,12 @@ function GameDetails({
 }
 
 function Library({ libraryGames, onDeleteLibraryGame, showGameDetails }) {
+  let searchGames = [];
+  function handleSearching(e) {
+    if (e.target.value.includes(libraryGames)) {
+      searchGames = e.target.value;
+    }
+  }
   return (
     <main className="library-area">
       <header className="page-header">
@@ -519,7 +527,10 @@ function Library({ libraryGames, onDeleteLibraryGame, showGameDetails }) {
           <p className="eyebrow">Your collection</p>
           <h1>My Library</h1>
         </div>
-
+        <input
+          placeholder="Search your library..."
+          onChange={(e) => handleSearching(e)}
+        />
         <span className="game-count">{libraryGames.length} games</span>
       </header>
 
@@ -675,60 +686,110 @@ function PersonalDetails({
   setDateStarted,
 }) {
   return (
-    <div>
-      <StarRating
-        maxRating={10}
-        size={24}
-        defaultRating={userRating[selectedGameId] || 0}
-        onSetRating={(rating) =>
-          setUserRating((previousRatings) => ({
-            ...previousRatings,
-            [selectedGameId]: rating,
-          }))
-        }
-      />
-      <input
-        placeholder="Hours Played"
-        value={hoursPlayed[selectedGameId] || ""}
-        onChange={(e) =>
-          setHoursPlayed((previousHoursPlayed) => ({
-            ...previousHoursPlayed,
-            [selectedGameId]: e.target.value,
-          }))
-        }
-        type="number"
-      />
-      <input
-        placeholder="Date Started"
-        value={dateStarted[selectedGameId] || ""}
-        onChange={(e) =>
-          setDateStarted((previousDateStarted) => ({
-            ...previousDateStarted,
-            [selectedGameId]: e.target.value,
-          }))
-        }
-      />
-      <input
-        placeholder="Date Finished"
-        value={dateFinished[selectedGameId] || ""}
-        onChange={(e) =>
-          setDateFinished((previousDateFinished) => ({
-            ...previousDateFinished,
-            [selectedGameId]: e.target.value,
-          }))
-        }
-      />
+    <section
+      className="personal-details"
+      aria-labelledby="personal-details-title"
+    >
+      <div className="personal-details-heading">
+        <div>
+          <p className="eyebrow">Your progress</p>
+          <h3 id="personal-details-title">Personal details</h3>
+        </div>
+        <button
+          className="reset-rating-button"
+          type="button"
+          onClick={() =>
+            setUserRating((previousRatings) => ({
+              ...previousRatings,
+              [selectedGameId]: 0,
+            }))
+          }
+        >
+          Reset rating
+        </button>
+      </div>
 
-      <input
-        placeholder="Note"
-        value={note[selectedGameId] || ""}
-        onChange={(e) =>
-          setNote((previousNote) => ({
-            ...previousNote,
-            [selectedGameId]: e.target.value,
-          }))
-        }
-      />
-    </div>
+      <div className="rating-field">
+        <span className="field-label">Your rating</span>
+        <StarRating
+          maxRating={10}
+          size={24}
+          defaultRating={userRating[selectedGameId] || 0}
+          onSetRating={(rating) =>
+            setUserRating((previousRatings) => ({
+              ...previousRatings,
+              [selectedGameId]: rating,
+            }))
+          }
+        />
+      </div>
+
+      <div className="personal-details-fields">
+        <label>
+          <span className="field-label">Hours played</span>
+          <input
+            value={hoursPlayed[selectedGameId] || ""}
+            onChange={(e) =>
+              setHoursPlayed((previousHoursPlayed) => ({
+                ...previousHoursPlayed,
+                [selectedGameId]: e.target.value,
+              }))
+            }
+            type="number"
+            min="0"
+            placeholder="0"
+          />
+        </label>
+        <label>
+          <span className="field-label">Date started</span>
+          <input
+            value={dateStarted[selectedGameId] || ""}
+            onChange={(e) =>
+              setDateStarted((previousDateStarted) => ({
+                ...previousDateStarted,
+                [selectedGameId]: e.target.value,
+              }))
+            }
+            type="date"
+          />
+        </label>
+        <label>
+          <span className="field-label">Date finished</span>
+          <input
+            value={dateFinished[selectedGameId] || ""}
+            onChange={(e) =>
+              setDateFinished((previousDateFinished) => ({
+                ...previousDateFinished,
+                [selectedGameId]: e.target.value,
+              }))
+            }
+            type="date"
+          />
+        </label>
+        <label className="note-field">
+          <span className="field-label">Note</span>
+          <textarea
+            value={note[selectedGameId] || ""}
+            onChange={(e) =>
+              setNote((previousNote) => ({
+                ...previousNote,
+                [selectedGameId]: e.target.value,
+              }))
+            }
+            placeholder="What stood out?"
+            rows="3"
+          />
+        </label>
+      </div>
+    </section>
   );
 }
+
+// search bar for library
+// sort or filter for library
+// drag and drop for lists
+// list description
+// custom color for lists
+// sort games within lists
+// dashboard or home panel
+// share lists or library
