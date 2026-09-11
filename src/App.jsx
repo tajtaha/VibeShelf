@@ -14,6 +14,7 @@ export default function App() {
   const [showAddList, setShowAddList] = useState(false);
   const localLists = JSON.parse(localStorage.getItem("lists")) || [];
   const [lists, setLists] = useState(localLists);
+  const [errorMessage, setErrorMessage] = useState("");
   const [userRating, setUserRating] = useState(
     () => JSON.parse(localStorage.getItem("userRating")) || {},
   );
@@ -74,6 +75,7 @@ export default function App() {
       listTitle.trim() === "" ||
       lists.some((list) => list.title === listTitle)
     ) {
+      setErrorMessage("List title cannot be empty or duplicate.");
       return;
     }
 
@@ -117,6 +119,9 @@ export default function App() {
             setLibraryGames={setLibraryGames}
             showGameDetails={showGameDetails}
             onDeleteLibraryGame={handleDeleteLibraryGame}
+            lists={lists}
+            onAddToList={handleAddToList}
+            setShowAddList={setShowAddList}
           />
         ) : null}
         {tab == "GamesList" ? (
@@ -160,7 +165,11 @@ export default function App() {
           />
         ) : null}
         {showAddList && (
-          <AddList setShowAddList={setShowAddList} onAddList={handleAddList} />
+          <AddList
+            setShowAddList={setShowAddList}
+            onAddList={handleAddList}
+            errorMessage={errorMessage}
+          />
         )}
       </div>
     </div>
@@ -305,20 +314,12 @@ function GamesList({
               >
                 <button type="button">Add to List</button>
 
-                <div className="flyout-menu">
-                  {lists.map((list) => (
-                    <button
-                      key={list.title}
-                      type="button"
-                      onClick={() => onAddToList(list.title, game)}
-                    >
-                      {list.title}
-                    </button>
-                  ))}
-                  <button onClick={() => setShowAddList(true)} type="button">
-                    New List +
-                  </button>
-                </div>
+                <AddToListFlyout
+                  lists={lists}
+                  onAddToList={onAddToList}
+                  game={game}
+                  setShowAddList={setShowAddList}
+                />
               </div>
 
               <img
@@ -513,13 +514,31 @@ function GameDetails({
   );
 }
 
-function Library({ libraryGames, onDeleteLibraryGame, showGameDetails }) {
-  let searchGames = [];
-  function handleSearching(e) {
-    if (e.target.value.includes(libraryGames)) {
-      searchGames = e.target.value;
-    }
+function Library({
+  libraryGames,
+  onDeleteLibraryGame,
+  showGameDetails,
+  lists,
+  onAddToList,
+  setShowAddList,
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedList, setSelectedList] = useState("all");
+
+  const selectedListGames =
+    selectedList === "all"
+      ? libraryGames
+      : lists.find((list) => list.title === selectedList)?.games || [];
+
+  const filteredGames = selectedListGames.filter((game) =>
+    game.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  function onChangeFilter(list) {
+    setSelectedList(list);
+    setSearchQuery("");
   }
+
   return (
     <main className="library-area">
       <header className="page-header">
@@ -527,26 +546,60 @@ function Library({ libraryGames, onDeleteLibraryGame, showGameDetails }) {
           <p className="eyebrow">Your collection</p>
           <h1>My Library</h1>
         </div>
+        <select
+          className="library-filter"
+          value={selectedList}
+          onChange={(event) => onChangeFilter(event.target.value)}
+        >
+          <option value="all">All games</option>
+          {lists.map((list) => (
+            <option key={list.title} value={list.title}>
+              {list.title}
+            </option>
+          ))}
+        </select>
         <input
+          className="library-search"
           placeholder="Search your library..."
-          onChange={(e) => handleSearching(e)}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <span className="game-count">{libraryGames.length} games</span>
+        <button
+          className="clear-search-button"
+          type="button"
+          onClick={() => setSearchQuery("")}
+          aria-label="Clear library search"
+        >
+          Clear
+        </button>
+        <span className="game-count">{filteredGames.length} games</span>
       </header>
 
-      {libraryGames.length === 0 ? (
+      {filteredGames.length === 0 ? (
         <div className="empty-library">
           <h2>Your library is empty</h2>
           <p>Add games from the home page and they'll appear here.</p>
         </div>
       ) : (
         <div className="library-grid">
-          {libraryGames.map((game) => (
+          {filteredGames.map((game) => (
             <article
               className="library-card"
               key={game.id}
               onClick={() => showGameDetails(game.id)}
             >
+              <div
+                className="flyout"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button type="button">Add to List</button>
+                <AddToListFlyout
+                  lists={lists}
+                  onAddToList={onAddToList}
+                  game={game}
+                  setShowAddList={setShowAddList}
+                />
+              </div>
               <img
                 src={
                   game.background_image || "assets/No-Image-Placeholder-Light"
@@ -640,35 +693,44 @@ function Lists({
   );
 }
 
-function AddList({ setShowAddList, onAddList }) {
+function AddList({ setShowAddList, onAddList, errorMessage }) {
   const [listTitle, setListTitle] = useState("");
 
   return (
-    <section className="add-list-panel">
-      <div className="add-list-heading">
-        <div>
-          <p className="eyebrow">Create a collection</p>
-          <h2>New list</h2>
-        </div>
-        <button className="close-button" onClick={() => setShowAddList(false)}>
-          Close
-        </button>
-      </div>
-
-      <input
-        className="list-title-input"
-        placeholder="List title"
-        onChange={(e) => setListTitle(e.target.value)}
-      />
-      <button
-        className="primary-button"
-        onClick={() => {
-          onAddList(listTitle);
-        }}
+    <div className="add-list-overlay" onClick={() => setShowAddList(false)}>
+      <section
+        className="add-list-panel"
+        onClick={(event) => event.stopPropagation()}
       >
-        Add
-      </button>
-    </section>
+        <div className="add-list-heading">
+          <div>
+            <p className="eyebrow">Create a collection</p>
+            <h2>New list</h2>
+          </div>
+          <button
+            className="close-button"
+            onClick={() => setShowAddList(false)}
+          >
+            Close
+          </button>
+        </div>
+        {errorMessage && <p className="add-list-error">{errorMessage}</p>}
+
+        <input
+          className="list-title-input"
+          placeholder="List title"
+          onChange={(e) => setListTitle(e.target.value)}
+        />
+        <button
+          className="primary-button"
+          onClick={() => {
+            onAddList(listTitle);
+          }}
+        >
+          Add
+        </button>
+      </section>
+    </div>
   );
 }
 
@@ -785,8 +847,25 @@ function PersonalDetails({
   );
 }
 
-// search bar for library
-// sort or filter for library
+function AddToListFlyout({ lists, onAddToList, game, setShowAddList }) {
+  return (
+    <div className="flyout-menu">
+      {lists.map((list) => (
+        <button
+          key={list.title}
+          type="button"
+          onClick={() => onAddToList(list.title, game)}
+        >
+          {list.title}
+        </button>
+      ))}
+      <button onClick={() => setShowAddList(true)} type="button">
+        New List +
+      </button>
+    </div>
+  );
+}
+
 // drag and drop for lists
 // list description
 // custom color for lists
