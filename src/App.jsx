@@ -1,7 +1,185 @@
 import { useState, useEffect, useRef } from "react";
 import { getGames } from "./services/gamesApi";
 import StarRating from "./StarRating.jsx";
+import defaultGameImage from "./assets/No-Image-Placeholder-Light.png";
 import "./App.css";
+
+const fallbackGameImage = defaultGameImage;
+
+function escapeHtml(value = "") {
+  return String(value).replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[character],
+  );
+}
+
+function downloadLibraryHtml(games, personalData = {}, collection = {}) {
+  const collectionTitle = collection.title || "My Game Library";
+  const collectionDescription =
+    collection.description || "A collection of games worth playing.";
+  const {
+    userRating = {},
+    hoursPlayed = {},
+    dateStarted = {},
+    dateFinished = {},
+    note = {},
+  } = personalData;
+  const cards = games
+    .map(
+      (game, index) => `
+    <article class="game-card">
+      <img src="${escapeHtml(game.background_image || fallbackGameImage)}" alt="${escapeHtml(game.name)} cover">
+      <div class="game-info">
+        <span class="game-number">${String(index + 1).padStart(2, "0")}</span>
+        <h2>${escapeHtml(game.name)}</h2>
+        <p>${escapeHtml(game.released || "Release date unknown")}</p>
+      </div>
+    </article>`,
+    )
+    .join("");
+  const detailsPanels = games
+    .map(
+      (game, index) => `
+    <section class="details-panel" id="details-${index}" hidden>
+      <button class="details-back" type="button" data-close-details>← Back to library</button>
+      <img class="details-image" src="${escapeHtml(game.background_image || fallbackGameImage)}" alt="${escapeHtml(game.name)} cover">
+      <div class="details-content">
+        <p class="eyebrow">Game details</p>
+        <h2>${escapeHtml(game.name)}</h2>
+        <p class="details-description">${escapeHtml(game.description_raw || game.description || "No description available.")}</p>
+        <div class="stats-grid">
+          <div><span>Rating</span><strong>${escapeHtml(game.rating ?? "-")} / 5</strong></div>
+          <div><span>Metacritic</span><strong>${escapeHtml(game.metacritic ?? "-")}</strong></div>
+          <div><span>Released</span><strong>${escapeHtml(game.released || "-")}</strong></div>
+          <div><span>Playtime</span><strong>${escapeHtml(game.playtime ? `${game.playtime} hrs` : "-")}</strong></div>
+        </div>
+        <dl class="details-list">
+          <div><dt>Genres</dt><dd>${escapeHtml(game.genres?.map((item) => item.name).join(", ") || "Not listed")}</dd></div>
+          <div><dt>Platforms</dt><dd>${escapeHtml(game.platforms?.map((item) => item.platform?.name).join(", ") || "Not listed")}</dd></div>
+          <div><dt>Developers</dt><dd>${escapeHtml(game.developers?.map((item) => item.name).join(", ") || "Not listed")}</dd></div>
+          <div><dt>Publishers</dt><dd>${escapeHtml(game.publishers?.map((item) => item.name).join(", ") || "Not listed")}</dd></div>
+        </dl>
+        <div class="personal-details">
+          <p class="eyebrow">Your progress</p>
+          <h3>Personal details</h3>
+          <dl class="details-list">
+            <div><dt>Your rating</dt><dd>${escapeHtml(userRating[game.id] || "Not rated")}</dd></div>
+            <div><dt>Hours played</dt><dd>${escapeHtml(hoursPlayed[game.id] || "Not logged")}</dd></div>
+            <div><dt>Date started</dt><dd>${escapeHtml(dateStarted[game.id] || "Not logged")}</dd></div>
+            <div><dt>Date finished</dt><dd>${escapeHtml(dateFinished[game.id] || "Not logged")}</dd></div>
+          </dl>
+          ${note[game.id] ? `<blockquote>${escapeHtml(note[game.id])}</blockquote>` : ""}
+        </div>
+      </div>
+    </section>`,
+    )
+    .join("");
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(collectionTitle)}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eef1ed; color: #20282c; font-family: Arial, sans-serif; }
+      main { width: min(1120px, calc(100% - 40px)); margin: auto; padding: 56px 0 72px; }
+      header { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 34px; padding-bottom: 26px; border-bottom: 1px solid #d7e0d9; }
+      .eyebrow { margin: 0 0 10px; color: #236b56; font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(2.5rem, 7vw, 5.5rem); font-weight: 400; letter-spacing: -.06em; line-height: .9; }
+      .count { color: #236b56; font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+      .collection-description { max-width: 560px; margin: 16px 0 0; color: #68766f; font-size: .95rem; line-height: 1.55; }
+      .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
+      .game-card { overflow: hidden; border: 1px solid #d7e0d9; border-radius: 12px; background: #fff; box-shadow: 0 12px 26px #26392f14; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+      .game-card:hover, .game-card:focus-visible { transform: translateY(-4px); box-shadow: 0 18px 32px #26392f22; outline: 3px solid #236b5633; outline-offset: 3px; }
+      .game-card img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: #dfe9e1; }
+      .game-info { padding: 15px; }
+      .game-number { color: #d06b42; font-size: .7rem; font-weight: 700; letter-spacing: .1em; }
+      h2 { overflow: hidden; margin: 7px 0; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+      .game-info > p { margin: 0; color: #718078; font-size: .82rem; }
+      .details-panel { overflow: hidden; margin-top: 24px; border: 1px solid #d5ddd6; border-radius: 12px; background: #fff; box-shadow: 0 18px 40px #26392f18; }
+      .details-back { margin: 16px 16px 0; padding: 9px 12px; border: 1px solid #cbd5cd; border-radius: 5px; background: #fff; color: #236b56; cursor: pointer; font-weight: 700; }
+      .details-image { display: block; width: 100%; height: 260px; margin-top: 16px; object-fit: cover; }
+      .details-content { padding: 24px; }
+      .details-content h2 { margin: 0 0 14px; font-size: 1.8rem; }
+      .details-description { max-width: 780px; color: #586660; font-size: .92rem; line-height: 1.6; }
+      .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; padding: 16px 0; border-top: 1px solid #e0e6e1; border-bottom: 1px solid #e0e6e1; }
+      .stats-grid span { display: block; color: #718078; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .stats-grid strong { display: block; margin-top: 5px; font-size: .9rem; }
+      dl { margin: 0; }
+      dl div { display: grid; grid-template-columns: 88px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid #edf0ed; }
+      dt { color: #718078; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+      dd { margin: 0; color: #586660; font-size: .78rem; line-height: 1.35; }
+      blockquote { margin: 14px 0 0; padding: 10px 12px; border-left: 3px solid #d06b42; background: #fff7f2; color: #586660; font-size: .82rem; line-height: 1.45; }
+      .personal-details { margin-top: 26px; padding-top: 22px; border-top: 1px solid #e0e6e1; }
+      .personal-details h3 { margin: 0 0 16px; font-size: 1.15rem; }
+      footer { margin-top: 38px; color: #718078; font-size: .75rem; text-align: center; }
+      @media (max-width: 600px) { main { width: min(100% - 28px, 560px); padding: 34px 0 48px; } header { display: block; } .count { display: block; margin-top: 18px; } .game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .game-info { padding: 11px; } h2 { font-size: .88rem; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .details-content { padding: 16px; } .details-image { height: 180px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><p class="eyebrow">Shared collection</p><h1>${escapeHtml(collectionTitle)}</h1><p class="collection-description">${escapeHtml(collectionDescription)}</p></div>
+        <span class="count">${games.length} ${games.length === 1 ? "game" : "games"}</span>
+      </header>
+      <section class="game-grid">${cards}</section>
+      <div id="details-container">${detailsPanels}</div>
+      <footer>Shared from Entertainment Tracker</footer>
+    </main>
+    <script>
+      const cards = document.querySelectorAll(".game-card");
+      const panels = document.querySelectorAll(".details-panel");
+      cards.forEach((card, index) => {
+        card.tabIndex = 0;
+        card.addEventListener("click", () => openDetails(index));
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetails(index); }
+        });
+      });
+      function openDetails(index) {
+        document.querySelector(".game-grid").hidden = true;
+        panels.forEach((panel, panelIndex) => { panel.hidden = panelIndex !== index; });
+        requestAnimationFrame(() => {
+          panels[index].scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+      document.querySelectorAll("[data-close-details]").forEach((button) => {
+        button.addEventListener("click", () => {
+          panels.forEach((panel) => { panel.hidden = true; });
+          document.querySelector(".game-grid").hidden = false;
+        });
+      });
+    </script>
+  </body>
+</html>`;
+
+  const objectUrl = URL.createObjectURL(
+    new Blob([html], { type: "text/html" }),
+  );
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  const filename =
+    collectionTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "game-collection";
+  link.download = `${filename}.html`;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  }, 1000);
+}
 
 export default function App() {
   const [detailsTab, setDetailsTab] = useState(false);
@@ -12,6 +190,8 @@ export default function App() {
   const [libraryGames, setLibraryGames] = useState(localLibraryGames);
   const [tab, setTab] = useState("GamesList");
   const [showAddList, setShowAddList] = useState(false);
+  const [showSharePanel, setShowSharePanel] = useState(false);
+  const [shareCollection, setShareCollection] = useState("library");
   const localLists = JSON.parse(localStorage.getItem("lists")) || [];
   const [lists, setLists] = useState(localLists);
   const [errorMessage, setErrorMessage] = useState("");
@@ -70,7 +250,7 @@ export default function App() {
     );
   }
 
-  function handleAddList(listTitle) {
+  function handleAddList(listTitle, listDescription = "") {
     if (
       listTitle.trim() === "" ||
       lists.some((list) => list.title === listTitle)
@@ -81,7 +261,7 @@ export default function App() {
 
     setLists((previousLists) => [
       ...previousLists,
-      { title: listTitle, games: [] },
+      { title: listTitle, description: listDescription, games: [] },
     ]);
     setShowAddList(false);
   }
@@ -122,6 +302,10 @@ export default function App() {
             lists={lists}
             onAddToList={handleAddToList}
             setShowAddList={setShowAddList}
+            onOpenShare={() => {
+              setShareCollection("library");
+              setShowSharePanel(true);
+            }}
           />
         ) : null}
         {tab == "GamesList" ? (
@@ -158,10 +342,17 @@ export default function App() {
         {tab == "Lists" ? (
           <Lists
             lists={lists}
+            setLists={setLists}
             setShowAddList={setShowAddList}
             showGameDetails={showGameDetails}
             onDeleteFromList={handleDeleteFromList}
             onDeleteList={handleDeleteList}
+            onOpenShare={(collectionTitle) => {
+              setShareCollection(
+                collectionTitle || lists[0]?.title || "library",
+              );
+              setShowSharePanel(true);
+            }}
           />
         ) : null}
         {showAddList && (
@@ -169,6 +360,19 @@ export default function App() {
             setShowAddList={setShowAddList}
             onAddList={handleAddList}
             errorMessage={errorMessage}
+          />
+        )}
+        {showSharePanel && (
+          <SharePanel
+            libraryGames={libraryGames}
+            lists={lists}
+            initialCollection={shareCollection}
+            setShowSharePanel={setShowSharePanel}
+            userRating={userRating}
+            hoursPlayed={hoursPlayed}
+            dateStarted={dateStarted}
+            dateFinished={dateFinished}
+            note={note}
           />
         )}
       </div>
@@ -323,10 +527,12 @@ function GamesList({
               </div>
 
               <img
-                src={
-                  game.background_image || "assets/No-Image-Placeholder-Light"
-                }
+                src={game.background_image || fallbackGameImage}
                 alt={game.name}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = fallbackGameImage;
+                }}
               />
               <div className="game-card-content">
                 <span className="card-number">
@@ -445,8 +651,12 @@ function GameDetails({
       </button>
       <img
         className="details-image"
-        src={game.background_image || "assets/No-Image-Placeholder-Light"}
+        src={game.background_image || fallbackGameImage}
         alt={game.name}
+        onError={(event) => {
+          event.currentTarget.onerror = null;
+          event.currentTarget.src = fallbackGameImage;
+        }}
       />
       <div className="details-content">
         <p className="eyebrow">Game details</p>
@@ -521,6 +731,7 @@ function Library({
   lists,
   onAddToList,
   setShowAddList,
+  onOpenShare,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedList, setSelectedList] = useState("all");
@@ -542,6 +753,16 @@ function Library({
   return (
     <main className="library-area">
       <header className="page-header">
+        <button
+          className="library-share-button"
+          type="button"
+          onClick={() =>
+            onOpenShare(selectedList === "all" ? "library" : selectedList)
+          }
+        >
+          <span aria-hidden="true">↗</span>
+          Share library
+        </button>
         <div>
           <p className="eyebrow">Your collection</p>
           <h1>My Library</h1>
@@ -601,10 +822,12 @@ function Library({
                 />
               </div>
               <img
-                src={
-                  game.background_image || "assets/No-Image-Placeholder-Light"
-                }
+                src={game.background_image || fallbackGameImage}
                 alt={game.name}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = fallbackGameImage;
+                }}
               />
 
               <div className="library-card-content">
@@ -632,14 +855,73 @@ function Library({
 
 function Lists({
   lists,
+  setLists,
   setShowAddList,
   showGameDetails,
   onDeleteFromList,
   onDeleteList,
+  onOpenShare,
 }) {
+  const [draggedGameId, setDraggedGameId] = useState(null);
+  const [draggedFromList, setDraggedFromList] = useState(null);
+
+  function handleDragStart(gameId, listTitle) {
+    setDraggedGameId(gameId);
+    setDraggedFromList(listTitle);
+  }
+
+  function handleDrop(targetListTitle, gameId) {
+    if (!draggedFromList || !draggedGameId) return;
+
+    setLists((previousLists) => {
+      const sourceList = previousLists.find(
+        (list) => list.title === draggedFromList,
+      );
+      const targetList = previousLists.find(
+        (list) => list.title === targetListTitle,
+      );
+
+      if (!sourceList || !targetList) return previousLists;
+
+      const gameToMove = sourceList.games.find((game) => game.id === gameId);
+
+      if (!gameToMove) return previousLists;
+
+      if (draggedFromList === targetListTitle) return previousLists;
+
+      if (targetList.games.some((game) => game.id === gameId)) {
+        return previousLists;
+      }
+
+      return previousLists.map((list) => {
+        if (list.title === draggedFromList) {
+          return {
+            ...list,
+            games: list.games.filter((game) => game.id !== gameId),
+          };
+        }
+
+        if (list.title === targetListTitle) {
+          return {
+            ...list,
+            games: [...list.games, gameToMove],
+          };
+        }
+
+        return list;
+      });
+    });
+
+    setDraggedGameId(null);
+    setDraggedFromList(null);
+  }
+
   return (
     <main className="lists-area">
       <header className="lists-header">
+        <button onClick={() => onOpenShare(lists[0]?.title)}>
+          Share Lists
+        </button>
         <div>
           <p className="eyebrow">Your collection</p>
           <h1>Game lists</h1>
@@ -654,8 +936,16 @@ function Lists({
         </div>
       </header>
       {lists.map((list) => (
-        <section className="list-panel" key={list.title}>
+        <section
+          className="list-panel"
+          key={list.title}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={() => handleDrop(list.title, draggedGameId)}
+        >
           <h2>{list.title}</h2>
+          {list.description && (
+            <p className="list-description">{list.description}</p>
+          )}
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -667,11 +957,31 @@ function Lists({
           <div className="list-games">
             {list.games.map((game) => (
               <div
-                className="list-game"
+                className={
+                  draggedGameId === game.id ? "list-game dragging" : "list-game"
+                }
                 key={game.id}
+                draggable
+                onDragStart={() => handleDragStart(game.id, list.title)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.stopPropagation();
+                  handleDrop(list.title, game.id);
+                }}
+                onDragEnd={() => {
+                  setDraggedGameId(null);
+                  setDraggedFromList(null);
+                }}
                 onClick={() => showGameDetails(game.id)}
               >
-                <img src={game.background_image} alt={game.name} />
+                <img
+                  src={game.background_image || fallbackGameImage}
+                  alt={game.name}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackGameImage;
+                  }}
+                />
                 <p>{game.name}</p>
                 <button
                   onClick={(event) => {
@@ -695,6 +1005,7 @@ function Lists({
 
 function AddList({ setShowAddList, onAddList, errorMessage }) {
   const [listTitle, setListTitle] = useState("");
+  const [listDescription, setListDescription] = useState("");
 
   return (
     <div className="add-list-overlay" onClick={() => setShowAddList(false)}>
@@ -721,10 +1032,15 @@ function AddList({ setShowAddList, onAddList, errorMessage }) {
           placeholder="List title"
           onChange={(e) => setListTitle(e.target.value)}
         />
+        <input
+          className="list-description-input"
+          placeholder="List description (optional)"
+          onChange={(e) => setListDescription(e.target.value)}
+        />
         <button
           className="primary-button"
           onClick={() => {
-            onAddList(listTitle);
+            onAddList(listTitle, listDescription);
           }}
         >
           Add
@@ -866,9 +1182,132 @@ function AddToListFlyout({ lists, onAddToList, game, setShowAddList }) {
   );
 }
 
-// drag and drop for lists
-// list description
+function SharePanel({
+  setShowSharePanel,
+  libraryGames,
+  lists,
+  initialCollection,
+  userRating,
+  hoursPlayed,
+  dateStarted,
+  dateFinished,
+  note,
+}) {
+  const [selectedCollection, setSelectedCollection] = useState(
+    initialCollection || "library",
+  );
+  const selectedList = lists.find((list) => list.title === selectedCollection);
+  const collectionGames =
+    selectedCollection === "library" ? libraryGames : selectedList?.games || [];
+  const collection =
+    selectedCollection === "library"
+      ? {
+          title: "My Game Library",
+          description: "Share your library with friends and fellow gamers.",
+        }
+      : {
+          title: selectedList?.title || "Shared List",
+          description:
+            selectedList?.description || "A curated collection of games.",
+        };
+
+  return (
+    <div
+      className="share-panel-overlay"
+      onClick={() => setShowSharePanel(false)}
+    >
+      <section
+        className="share-panel"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="share-panel__header">
+          <div>
+            <span className="share-panel__eyebrow">Shared collection</span>
+            <h2>{collection.title}</h2>
+            <p>{collection.description}</p>
+          </div>
+
+          <span className="share-panel__count">
+            {collectionGames.length}{" "}
+            {collectionGames.length === 1 ? "game" : "games"}
+          </span>
+          <button
+            className="share-panel__close"
+            type="button"
+            aria-label="Close share panel"
+            onClick={() => setShowSharePanel(false)}
+          >
+            ×
+          </button>
+        </div>
+
+        <label className="share-collection-selector">
+          <span>Share collection</span>
+          <select
+            value={selectedCollection}
+            onChange={(event) => setSelectedCollection(event.target.value)}
+          >
+            <option value="library">My library</option>
+            {lists.map((list) => (
+              <option key={list.title} value={list.title}>
+                {list.title}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {collectionGames.length === 0 ? (
+          <div className="share-panel__empty">
+            <h3>Your library is waiting</h3>
+            <p>Add a game first, then come back to share your collection.</p>
+          </div>
+        ) : (
+          <div className="share-panel__games">
+            {collectionGames.map((game, index) => (
+              <article className="share-game-card" key={game.id}>
+                <img
+                  src={game.background_image || fallbackGameImage}
+                  alt={`${game.name} cover`}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackGameImage;
+                  }}
+                />
+                <div className="share-game-card__content">
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{game.name}</h3>
+                  <p>{game.released || "Release date unknown"}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <div className="share-panel__actions">
+          <button
+            className="share-panel__download"
+            type="button"
+            onClick={() =>
+              downloadLibraryHtml(
+                collectionGames,
+                {
+                  userRating,
+                  hoursPlayed,
+                  dateStarted,
+                  dateFinished,
+                  note,
+                },
+                collection,
+              )
+            }
+          >
+            Download HTML
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // custom color for lists
-// sort games within lists
-// dashboard or home panel
-// share lists or library
+// tags
+// responsive design
