@@ -1330,5 +1330,3 @@ function SharePanel({
 }
 
 // custom color for lists
-// tags
-// responsive design
