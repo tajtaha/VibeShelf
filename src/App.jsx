@@ -479,6 +479,11 @@ function GamesList({
           const isInLibrary = libraryGames.some(
             (libraryGame) => libraryGame.id === game.id,
           );
+          const gameLists = lists
+            .filter((list) =>
+              list.games.some((listGame) => listGame.id === game.id),
+            )
+            .map((list) => list.title);
 
           return (
             <article
@@ -538,6 +543,16 @@ function GamesList({
                 <span className="card-number">
                   {String(index + 1).padStart(2, "0")}
                 </span>
+                <div
+                  className="game-list-tags"
+                  aria-label="Lists containing this game"
+                >
+                  {gameLists.map((listTitle) => (
+                    <span className="game-list-tag" key={listTitle}>
+                      {listTitle}
+                    </span>
+                  ))}
+                </div>
                 <h2>{game.name}</h2>
                 <p>{game.released || "Release date unknown"}</p>
               </div>
@@ -613,6 +628,8 @@ function SearchBar({
       </button>
       <input
         className="search-input"
+        type="search"
+        aria-label="Search games"
         placeholder="Search games..."
         onChange={handleSearch}
       />
@@ -919,7 +936,11 @@ function Lists({
   return (
     <main className="lists-area">
       <header className="lists-header">
-        <button onClick={() => onOpenShare(lists[0]?.title)}>
+        <button
+          className="lists-share-button"
+          type="button"
+          onClick={() => onOpenShare(lists[0]?.title)}
+        >
           Share Lists
         </button>
         <div>
