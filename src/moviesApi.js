@@ -16,7 +16,24 @@ export async function getMovies(page, sort, order, query) {
     params.set("query", searchQuery);
   }
   let url = `https://api.themoviedb.org/3/${endpoint}?${params.toString()}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  return data.results;
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      let errBody = null;
+      try {
+        errBody = await response.json();
+      } catch {
+        /* ignore */
+      }
+      const msg = errBody?.status_message || `HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    return data.results;
+  } catch (err) {
+    console.error("getMovies error", err);
+    throw err;
+  }
 }

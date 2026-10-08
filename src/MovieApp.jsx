@@ -10,6 +10,93 @@ export default function MovieApp() {
   const [order, setOrder] = useState("desc");
   const [query, setQuery] = useState("");
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [lists, setLists] = useState(() => {
+    const savedMovieLists = JSON.parse(localStorage.getItem("movieLists"));
+    if (Array.isArray(savedMovieLists)) {
+      return savedMovieLists.map((list) => ({
+        ...list,
+        movies: Array.isArray(list.movies) ? list.movies : [],
+      }));
+    }
+
+    const savedLists = JSON.parse(localStorage.getItem("lists")) || [];
+    return savedLists
+      .map((list) => ({
+        title: list.title,
+        description: list.description || "",
+        movies: [
+          ...(Array.isArray(list.movies) ? list.movies : []),
+          ...(Array.isArray(list.games)
+            ? list.games.filter((item) => item.title)
+            : []),
+        ],
+      }))
+      .filter((list) => list.movies.length > 0);
+  });
+  const [showAddList, setShowAddList] = useState(false);
+  const [listError, setListError] = useState("");
+  const [activeView, setActiveView] = useState("discover");
+
+  useEffect(() => {
+    localStorage.setItem("movieLists", JSON.stringify(lists));
+  }, [lists]);
+
+  function handleAddToList(listTitle, movie) {
+    if (
+      lists.some(
+        (list) =>
+          list.title === listTitle &&
+          list.movies.some((item) => item.id === movie.id),
+      )
+    ) {
+      alert("This movie is already in the list.");
+      return;
+    }
+
+    setLists((previousLists) =>
+      previousLists.map((list) =>
+        list.title === listTitle
+          ? { ...list, movies: [...list.movies, movie] }
+          : list,
+      ),
+    );
+  }
+
+  function handleAddList(listTitle, listDescription = "") {
+    if (
+      listTitle.trim() === "" ||
+      lists.some((list) => list.title === listTitle)
+    ) {
+      setListError("List title cannot be empty or duplicate.");
+      return;
+    }
+
+    setLists((previousLists) => [
+      ...previousLists,
+      { title: listTitle, description: listDescription, movies: [] },
+    ]);
+    setShowAddList(false);
+    setListError("");
+  }
+
+  function handleDeleteList(listTitle) {
+    setLists((previousLists) =>
+      previousLists.filter((list) => list.title !== listTitle),
+    );
+  }
+
+  function handleDeleteListItem(listTitle, movieId) {
+    setLists((previousLists) =>
+      previousLists.map((list) =>
+        list.title === listTitle
+          ? {
+              ...list,
+              movies: list.movies.filter((movie) => movie.id !== movieId),
+            }
+          : list,
+      ),
+    );
+  }
 
   return (
     <div className="movie-app">
@@ -23,15 +110,22 @@ export default function MovieApp() {
         </div>
       </header>
 
-      <SearchBar
-        setSort={setSort}
-        setOrder={setOrder}
-        sort={sort}
-        order={order}
-        setPage={setPage}
-        setMovies={setMovies}
-        setQuery={setQuery}
-      />
+      <nav className="movie-view-tabs" aria-label="Movie sections">
+        <button
+          type="button"
+          className={activeView === "discover" ? "active" : ""}
+          onClick={() => setActiveView("discover")}
+        >
+          Discover
+        </button>
+        <button
+          type="button"
+          className={activeView === "lists" ? "active" : ""}
+          onClick={() => setActiveView("lists")}
+        >
+          My Lists
+        </button>
+      </nav>
 
       {selectedMovie && (
         <MovieDetails
@@ -40,16 +134,48 @@ export default function MovieApp() {
         />
       )}
 
-      <MoviesList
-        movies={movies}
-        setMovies={setMovies}
-        page={page}
-        setPage={setPage}
-        sort={sort}
-        order={order}
-        query={query}
-        setSelectedMovie={setSelectedMovie}
-      />
+      {activeView === "discover" ? (
+        <>
+          <SearchBar
+            setSort={setSort}
+            setOrder={setOrder}
+            sort={sort}
+            order={order}
+            setPage={setPage}
+            setMovies={setMovies}
+            setQuery={setQuery}
+            query={query}
+          />
+          <MoviesList
+            movies={movies}
+            setMovies={setMovies}
+            page={page}
+            setPage={setPage}
+            sort={sort}
+            order={order}
+            query={query}
+            lists={lists}
+            onAddToList={handleAddToList}
+            setShowAddList={setShowAddList}
+            setSelectedMovie={setSelectedMovie}
+          />
+        </>
+      ) : (
+        <Lists
+          lists={lists}
+          setShowAddList={setShowAddList}
+          setSelectedMovie={setSelectedMovie}
+          onDeleteList={handleDeleteList}
+          onDeleteListItem={handleDeleteListItem}
+        />
+      )}
+      {showAddList && (
+        <AddList
+          setShowAddList={setShowAddList}
+          onAddList={handleAddList}
+          errorMessage={listError}
+        />
+      )}
     </div>
   );
 }
@@ -62,6 +188,9 @@ function MoviesList({
   sort,
   order,
   query,
+  lists,
+  onAddToList,
+  setShowAddList,
   setSelectedMovie,
 }) {
   const [loading, setLoading] = useState(false);
@@ -100,13 +229,26 @@ function MoviesList({
 
       {movies.length > 0 ? (
         <div className="movie-grid">
-      {movies.map((movie) => (
-            <button
-              key={movie.id}
+          {movies.map((movie) => (
+            <article
               className="movie-card"
-              type="button"
+              key={movie.id}
               onClick={() => setSelectedMovie(movie)}
             >
+              <div
+                className="flyout"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button type="button">Add to List</button>
+
+                <AddToListFlyout
+                  lists={lists}
+                  onAddToList={onAddToList}
+                  movie={movie}
+                  setShowAddList={setShowAddList}
+                />
+              </div>
+
               <span className="movie-card-poster">
                 <img
                   src={
@@ -127,19 +269,40 @@ function MoviesList({
                   </span>
                 )}
               </span>
-              <span className="movie-card-copy">
+
+              <div className="movie-card-copy">
+                <div
+                  className="game-list-tags"
+                  aria-label="Lists containing this movie"
+                >
+                  {lists
+                    .filter((list) =>
+                      list.movies.some(
+                        (listMovie) => listMovie.id === movie.id,
+                      ),
+                    )
+                    .map((list) => list.title)
+                    .map((listTitle) => (
+                      <span className="game-list-tag" key={listTitle}>
+                        {listTitle}
+                      </span>
+                    ))}
+                </div>
+
                 <span className="movie-card-title">{movie.title}</span>
                 <span className="movie-card-year">
                   {movie.release_date?.slice(0, 4) || "Release year unknown"}
                 </span>
-              </span>
-            </button>
+              </div>
+            </article>
           ))}
         </div>
       ) : (
         !loading && (
           <div className="movie-empty-state">
-            <span className="movie-empty-icon" aria-hidden="true">✦</span>
+            <span className="movie-empty-icon" aria-hidden="true">
+              ✦
+            </span>
             <h3>No movies to show</h3>
             <p>Try another search, or check back in a moment.</p>
           </div>
@@ -167,6 +330,72 @@ function MoviesList({
   );
 }
 
+function AddToListFlyout({ lists, onAddToList, movie, setShowAddList }) {
+  return (
+    <div className="flyout-menu">
+      {lists.map((list) => (
+        <button
+          key={list.title}
+          type="button"
+          onClick={() => onAddToList(list.title, movie)}
+        >
+          {list.title}
+        </button>
+      ))}
+      <button onClick={() => setShowAddList(true)} type="button">
+        New List +
+      </button>
+    </div>
+  );
+}
+
+function AddList({ setShowAddList, onAddList, errorMessage }) {
+  const [listTitle, setListTitle] = useState("");
+  const [listDescription, setListDescription] = useState("");
+
+  return (
+    <div className="add-list-overlay" onClick={() => setShowAddList(false)}>
+      <section
+        className="add-list-panel"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="add-list-heading">
+          <div>
+            <p className="eyebrow">Create a collection</p>
+            <h2>New list</h2>
+          </div>
+          <button
+            className="close-button"
+            onClick={() => setShowAddList(false)}
+          >
+            Close
+          </button>
+        </div>
+        {errorMessage && <p className="add-list-error">{errorMessage}</p>}
+
+        <input
+          className="list-title-input"
+          placeholder="List title"
+          onChange={(e) => setListTitle(e.target.value)}
+        />
+        <input
+          className="list-description-input"
+          placeholder="List description (optional)"
+          onChange={(e) => setListDescription(e.target.value)}
+        />
+        <button
+          className="primary-button"
+          onClick={() => {
+            onAddList(listTitle, listDescription);
+          }}
+        >
+          Add
+        </button>
+      </section>
+    </div>
+  );
+}
+
 function SearchBar({
   setSort,
   setOrder,
@@ -175,18 +404,22 @@ function SearchBar({
   setPage,
   setMovies,
   setQuery,
+  query,
 }) {
   const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
+    const nextQuery = searchInput.trim();
+    if (nextQuery === query) return;
+
     const timer = setTimeout(() => {
-      setQuery(searchInput);
+      setQuery(nextQuery);
       setPage(1);
       setMovies([]);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchInput, setMovies, setPage, setQuery]);
+  }, [searchInput, query, setMovies, setPage, setQuery]);
 
   function handleChangeSort(sortValue) {
     setSort(sortValue);
@@ -211,19 +444,19 @@ function SearchBar({
 
       <label className="movie-sort-control">
         <span>Sort by</span>
-        <select
-          value={sort}
-          onChange={(e) => handleChangeSort(e.target.value)}
-        >
-        <option value="popularity">Popularity</option>
-        <option value="title">Title</option>
-        <option value="primary_release_date">Release date</option>
-        <option value="revenue">Revenue</option>
-        <option value="vote_average">Vote average</option>
+        <select value={sort} onChange={(e) => handleChangeSort(e.target.value)}>
+          <option value="popularity">Popularity</option>
+          <option value="title">Title</option>
+          <option value="primary_release_date">Release date</option>
+          <option value="revenue">Revenue</option>
+          <option value="vote_average">Vote average</option>
         </select>
       </label>
 
-      <button className="sort-button movie-order-button" onClick={handleChangeOrder}>
+      <button
+        className="sort-button movie-order-button"
+        onClick={handleChangeOrder}
+      >
         {order === "desc" ? "↓ Descending" : "↑ Ascending"}
       </button>
     </div>
@@ -258,7 +491,9 @@ function MovieDetails({ movie, onClose }) {
         setMovieDetails(data);
       } catch (error) {
         if (error.name !== "AbortError") {
-          setErrorMessage(`Could not load full movie details: ${error.message}`);
+          setErrorMessage(
+            `Could not load full movie details: ${error.message}`,
+          );
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -280,12 +515,11 @@ function MovieDetails({ movie, onClose }) {
     : "Unknown";
 
   return (
-    <section className="movie-details-panel" aria-label={`${movie.title} details`}>
-      <button
-        className="movie-details-close"
-        type="button"
-        onClick={onClose}
-      >
+    <section
+      className="movie-details-panel"
+      aria-label={`${movie.title} details`}
+    >
+      <button className="movie-details-close" type="button" onClick={onClose}>
         Close details
       </button>
       <div className="movie-details-art">
@@ -356,7 +590,9 @@ function MovieDetails({ movie, onClose }) {
           </div>
         </dl>
 
-        {loading && <p className="movie-details-message">Loading more details…</p>}
+        {loading && (
+          <p className="movie-details-message">Loading more details…</p>
+        )}
         {errorMessage && (
           <p className="movie-details-message" role="alert">
             {errorMessage}
@@ -364,5 +600,93 @@ function MovieDetails({ movie, onClose }) {
         )}
       </div>
     </section>
+  );
+}
+
+function Lists({ lists, setShowAddList, setSelectedMovie, onDeleteList, onDeleteListItem }) {
+  return (
+    <main className="movie-lists-area">
+      <header className="movie-lists-header">
+        <div>
+          <p className="eyebrow">Your collections</p>
+          <h2>Movie Lists</h2>
+        </div>
+        <button
+          className="movie-create-list-button"
+          type="button"
+          onClick={() => setShowAddList(true)}
+        >
+          New List +
+        </button>
+      </header>
+
+      {lists.length === 0 ? (
+        <div className="movie-empty-state">
+          <h3>No movie lists yet</h3>
+          <p>Create a list, then add movies from Discover.</p>
+        </div>
+      ) : (
+        lists.map((list) => (
+          <section className="list-panel movie-list-panel" key={list.title}>
+            <div className="movie-list-heading">
+              <h2>{list.title}</h2>
+              <button
+                className="movie-list-delete"
+                type="button"
+                onClick={() => onDeleteList(list.title)}
+              >
+                Delete list
+              </button>
+            </div>
+            {list.description && (
+              <p className="list-description">{list.description}</p>
+            )}
+            {list.movies.length > 0 ? (
+              <div className="movie-list-items">
+                {list.movies.map((movie) => (
+                  <article className="movie-list-item" key={movie.id}>
+                    <button
+                      className="movie-list-item-details"
+                      type="button"
+                      onClick={() => setSelectedMovie(movie)}
+                    >
+                      <img
+                        src={
+                          movie.poster_path
+                            ? `https://image.tmdb.org/t/p/w185${movie.poster_path}`
+                            : fallbackMovieImage
+                        }
+                        alt={`${movie.title} poster`}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = fallbackMovieImage;
+                        }}
+                      />
+                      <span>
+                        <strong>{movie.title}</strong>
+                        <small>
+                          {movie.release_date?.slice(0, 4) ||
+                            "Release year unknown"}
+                        </small>
+                      </span>
+                    </button>
+                    <button
+                      className="movie-list-item-delete"
+                      type="button"
+                      aria-label={`Remove ${movie.title} from ${list.title}`}
+                      onClick={() => onDeleteListItem(list.title, movie.id)}
+                    >
+                      Remove
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="movie-list-empty">This list has no movies yet.</p>
+            )}
+          </section>
+        ))
+      )}
+    </main>
   );
 }

@@ -111,6 +111,29 @@
   line-height: 1.55;
 }
 
+.movie-view-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #d8dfd8;
+}
+
+.movie-view-tabs button {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #718078;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.movie-view-tabs button.active {
+  border-bottom-color: #236b56;
+  color: #236b56;
+}
+
 .movie-toolbar {
   align-items: center;
   margin-bottom: 30px;
@@ -157,6 +180,137 @@
   min-width: 0;
 }
 
+.movie-lists-area {
+  min-width: 0;
+}
+
+.movie-lists-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.movie-lists-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.movie-create-list-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #236b56;
+  border-radius: 7px;
+  background: #236b56;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.movie-create-list-button:hover {
+  background: #174c3d;
+}
+
+.movie-list-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.movie-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.movie-list-heading h2 {
+  margin: 0;
+}
+
+.movie-list-delete,
+.movie-list-item-delete {
+  padding: 7px 9px;
+  border: 1px solid #e0b7ad;
+  border-radius: 5px;
+  background: #fff;
+  color: #a34f3e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.movie-list-delete:hover,
+.movie-list-item-delete:hover {
+  border-color: #a34f3e;
+  background: #fff7f5;
+}
+
+.movie-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #dbe1dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #20282c;
+}
+
+.movie-list-item-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.movie-list-item:focus-within {
+  border-color: #b7c9bd;
+  background: #f6faf7;
+}
+
+.movie-list-item img {
+  width: 48px;
+  height: 70px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: #e5ebe6;
+  object-fit: cover;
+}
+
+.movie-list-item span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.movie-list-item strong {
+  overflow: hidden;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.movie-list-item small,
+.movie-list-empty {
+  color: #718078;
+  font-size: 0.76rem;
+}
+
 .movie-library-heading {
   display: flex;
   align-items: flex-end;
@@ -189,15 +343,14 @@
 }
 
 .movie-card {
+  position: relative;
   display: block;
   min-width: 0;
   overflow: hidden;
-  padding: 0;
   border: 1px solid #dbe1dc;
   border-radius: 10px;
   background: #fff;
   color: #20282c;
-  cursor: pointer;
   text-align: left;
   box-shadow: 0 7px 18px rgba(38, 57, 47, 0.055);
   transition:
@@ -207,10 +360,84 @@
 }
 
 .movie-card:hover,
-.movie-card:focus-visible {
+.movie-card:focus-within {
   transform: translateY(-4px);
   border-color: #b7c9bd;
   box-shadow: 0 15px 28px rgba(38, 57, 47, 0.13);
+}
+
+.movie-card-main {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.movie-card-menu {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  min-width: 140px;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #d5ddd6;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(38, 57, 47, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  visibility: hidden;
+}
+
+.movie-card:hover .movie-card-menu,
+.movie-card:focus-within .movie-card-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.movie-card-menu-title {
+  padding: 3px 6px;
+  color: #718078;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.movie-card-menu button {
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #236b56;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.movie-card-menu button:hover,
+.movie-card-menu button:focus-visible {
+  background: #eef5f0;
+}
+
+@media (hover: none) {
+  .movie-card-menu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    visibility: visible;
+  }
 }
 
 .movie-card-poster {
@@ -229,7 +456,8 @@
   transition: transform 300ms ease;
 }
 
-.movie-card:hover .movie-card-poster img {
+.movie-card:hover .movie-card-poster img,
+.movie-card:focus-within .movie-card-poster img {
   transform: scale(1.035);
 }
 
@@ -1486,6 +1714,8 @@ select,
 
 .game-card:hover .flyout,
 .game-card:focus-within .flyout,
+.movie-card:hover .flyout,
+.movie-card:focus-within .flyout,
 .library-card:hover .flyout,
 .library-card:focus-within .flyout {
   opacity: 1;
@@ -2450,6 +2680,7 @@ select:focus,
 
   .game-card .add-game-button,
   .game-card .flyout,
+  .movie-card .flyout,
   .library-card .flyout {
     opacity: 1;
     transform: none;
