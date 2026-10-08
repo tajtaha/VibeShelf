@@ -1,6 +1,6 @@
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-export async function getMovies(page, sort, order, query) {
+export async function getMovies(page, sort, order, query, signal) {
   const searchQuery = query.trim();
   const endpoint = searchQuery ? "search/movie" : "discover/movie";
 
@@ -15,25 +15,25 @@ export async function getMovies(page, sort, order, query) {
   } else {
     params.set("query", searchQuery);
   }
-  let url = `https://api.themoviedb.org/3/${endpoint}?${params.toString()}`;
-  try {
-    const response = await fetch(url);
+  const url = `https://api.themoviedb.org/3/${endpoint}?${params.toString()}`;
+  const response = await fetch(url, { signal });
 
-    if (!response.ok) {
-      let errBody = null;
-      try {
-        errBody = await response.json();
-      } catch {
-        /* ignore */
-      }
-      const msg = errBody?.status_message || `HTTP ${response.status}`;
-      throw new Error(msg);
+  if (!response.ok) {
+    let errorBody;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = null;
     }
-
-    const data = await response.json();
-    return data.results;
-  } catch (err) {
-    console.error("getMovies error", err);
-    throw err;
+    throw new Error(
+      errorBody?.status_message || `Movie request failed (HTTP ${response.status}).`,
+    );
   }
+
+  const data = await response.json();
+  if (!Array.isArray(data.results)) {
+    throw new Error("The movie service returned an invalid response.");
+  }
+
+  return data.results;
 }

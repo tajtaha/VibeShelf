@@ -197,6 +197,17 @@
   font-size: 1.5rem;
 }
 
+.movie-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.movie-list-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .movie-create-list-button {
   min-height: 40px;
   padding: 0 14px;
@@ -309,6 +320,49 @@
 .movie-list-empty {
   color: #718078;
   font-size: 0.76rem;
+}
+
+.movie-error-message p {
+  margin: 0 0 10px;
+}
+
+.movie-error-message button {
+  padding: 7px 12px;
+  border: 1px solid #a34735;
+  border-radius: 6px;
+  background: #fff;
+  color: #a34735;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.movie-error-message button:hover,
+.movie-error-message button:focus-visible {
+  background: #fff7f5;
+}
+
+.movie-share-cards {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.share-game-card.movie-share-card img {
+  aspect-ratio: 2 / 3;
+}
+
+.share-game-card.movie-share-card h3 {
+  white-space: normal;
+}
+
+.movie-share-card .share-game-card__content {
+  min-height: 84px;
+}
+
+.share-panel__download:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .movie-library-heading {

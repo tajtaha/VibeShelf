@@ -3,6 +3,93 @@ import { useEffect } from "react";
 import { getMovies } from "./moviesApi.js";
 import fallbackMovieImage from "./assets/No-Image-Placeholder-Light.png";
 
+function escapeHtml(value = "") {
+  return String(value).replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[character],
+  );
+}
+
+function downloadMovieListHtml(list) {
+  const movies = list.movies
+    .map(
+      (movie) => `
+        <article class="movie-card">
+          <img src="${escapeHtml(
+            movie.poster_path
+              ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+              : fallbackMovieImage,
+          )}" alt="${escapeHtml(movie.title)} poster">
+          <div class="movie-info">
+            <h2>${escapeHtml(movie.title)}</h2>
+            <p>${escapeHtml(movie.release_date || "Release date unknown")}</p>
+            <p>${escapeHtml(movie.overview || "No overview available.")}</p>
+          </div>
+        </article>`,
+    )
+    .join("");
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(list.title)}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eef1ed; color: #20282c; font-family: Arial, sans-serif; }
+      main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0; }
+      header { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #d7e0d9; }
+      h1 { margin: 0; font-size: clamp(2rem, 6vw, 3.5rem); }
+      header p { color: #68766f; line-height: 1.5; }
+      .count { color: #236b56; font-size: .85rem; font-weight: 700; }
+      .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+      .movie-card { overflow: hidden; border: 1px solid #d7e0d9; border-radius: 10px; background: white; }
+      .movie-card img { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #dfe9e1; }
+      .movie-info { padding: 12px; }
+      .movie-info h2 { margin: 0 0 8px; font-size: 1rem; }
+      .movie-info p { color: #68766f; font-size: .82rem; line-height: 1.5; }
+      footer { margin-top: 32px; color: #718078; text-align: center; font-size: .8rem; }
+      @media (max-width: 480px) { .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .movie-info { padding: 9px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>${escapeHtml(list.title)}</h1>
+        ${list.description ? `<p>${escapeHtml(list.description)}</p>` : ""}
+        <span class="count">${list.movies.length} ${
+          list.movies.length === 1 ? "movie" : "movies"
+        }</span>
+      </header>
+      <section class="movie-grid">${movies}</section>
+      <footer>Shared from VibeShelf</footer>
+    </main>
+  </body>
+</html>`;
+  const objectUrl = URL.createObjectURL(
+    new Blob([html], { type: "text/html" }),
+  );
+  const link = document.createElement("a");
+  const filename =
+    list.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") ||
+    "movie-list";
+  link.href = objectUrl;
+  link.download = `${filename}.html`;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  }, 1000);
+}
+
 export default function MovieApp() {
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1);
@@ -36,6 +123,8 @@ export default function MovieApp() {
   const [showAddList, setShowAddList] = useState(false);
   const [listError, setListError] = useState("");
   const [activeView, setActiveView] = useState("discover");
+  const [showSharePanel, setShowSharePanel] = useState(false);
+  const [shareListTitle, setShareListTitle] = useState("");
 
   useEffect(() => {
     localStorage.setItem("movieLists", JSON.stringify(lists));
@@ -96,6 +185,11 @@ export default function MovieApp() {
           : list,
       ),
     );
+  }
+
+  function handleOpenShare(listTitle) {
+    setShareListTitle(listTitle || lists[0]?.title || "");
+    setShowSharePanel(true);
   }
 
   return (
@@ -167,6 +261,7 @@ export default function MovieApp() {
           setSelectedMovie={setSelectedMovie}
           onDeleteList={handleDeleteList}
           onDeleteListItem={handleDeleteListItem}
+          onOpenShare={handleOpenShare}
         />
       )}
       {showAddList && (
@@ -174,6 +269,13 @@ export default function MovieApp() {
           setShowAddList={setShowAddList}
           onAddList={handleAddList}
           errorMessage={listError}
+        />
+      )}
+      {showSharePanel && (
+        <MovieSharePanel
+          lists={lists}
+          initialListTitle={shareListTitle}
+          onClose={() => setShowSharePanel(false)}
         />
       )}
     </div>
@@ -195,25 +297,43 @@ function MoviesList({
 }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchMovies() {
       setLoading(true);
+      setErrorMessage("");
 
       try {
-        const newMovies = await getMovies(page, sort, order, query);
+        const newMovies = await getMovies(
+          page,
+          sort,
+          order,
+          query,
+          controller.signal,
+        );
         setMovies((prevMovies) =>
           page === 1 ? newMovies : [...prevMovies, ...newMovies],
         );
       } catch (error) {
-        setErrorMessage("Error fetching movies:" + error.message);
+        if (error.name !== "AbortError") {
+          console.error("Movie fetch error:", error);
+          setErrorMessage(
+            `Could not load movies: ${error.message || "Unknown network error."}`,
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchMovies();
-  }, [page, sort, order, query, setMovies]);
+    return () => controller.abort();
+  }, [page, sort, order, query, retryCount, setMovies]);
 
   return (
     <section className="movie-library">
@@ -298,7 +418,7 @@ function MoviesList({
           ))}
         </div>
       ) : (
-        !loading && (
+        !loading && !errorMessage && (
           <div className="movie-empty-state">
             <span className="movie-empty-icon" aria-hidden="true">
               ✦
@@ -310,9 +430,12 @@ function MoviesList({
       )}
 
       {errorMessage && (
-        <p className="movie-error-message" role="alert">
-          {errorMessage}
-        </p>
+        <div className="movie-error-message" role="alert">
+          <p>{errorMessage}</p>
+          <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+            Try again
+          </button>
+        </div>
       )}
       {loading && <p className="movie-loading-message">Finding movies…</p>}
 
@@ -603,7 +726,14 @@ function MovieDetails({ movie, onClose }) {
   );
 }
 
-function Lists({ lists, setShowAddList, setSelectedMovie, onDeleteList, onDeleteListItem }) {
+function Lists({
+  lists,
+  setShowAddList,
+  setSelectedMovie,
+  onDeleteList,
+  onDeleteListItem,
+  onOpenShare,
+}) {
   return (
     <main className="movie-lists-area">
       <header className="movie-lists-header">
@@ -611,13 +741,23 @@ function Lists({ lists, setShowAddList, setSelectedMovie, onDeleteList, onDelete
           <p className="eyebrow">Your collections</p>
           <h2>Movie Lists</h2>
         </div>
-        <button
-          className="movie-create-list-button"
-          type="button"
-          onClick={() => setShowAddList(true)}
-        >
-          New List +
-        </button>
+        <div className="movie-list-actions">
+          <button
+            className="lists-share-button"
+            type="button"
+            disabled={lists.length === 0}
+            onClick={() => onOpenShare(lists[0]?.title)}
+          >
+            Share Lists
+          </button>
+          <button
+            className="movie-create-list-button"
+            type="button"
+            onClick={() => setShowAddList(true)}
+          >
+            New List +
+          </button>
+        </div>
       </header>
 
       {lists.length === 0 ? (
@@ -688,5 +828,101 @@ function Lists({ lists, setShowAddList, setSelectedMovie, onDeleteList, onDelete
         ))
       )}
     </main>
+  );
+}
+
+function MovieSharePanel({ lists, initialListTitle, onClose }) {
+  const [selectedListTitle, setSelectedListTitle] = useState(
+    initialListTitle || lists[0]?.title || "",
+  );
+  const selectedList =
+    lists.find((list) => list.title === selectedListTitle) || lists[0];
+
+  return (
+    <div className="share-panel-overlay" onClick={onClose}>
+      <section className="share-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="share-panel__header">
+          <div>
+            <span className="share-panel__eyebrow">Shared collection</span>
+            <h2>{selectedList?.title || "Movie Lists"}</h2>
+            <p>
+              {selectedList?.description || "A collection of movies to share."}
+            </p>
+          </div>
+          <span className="share-panel__count">
+            {selectedList?.movies.length || 0}{" "}
+            {(selectedList?.movies.length || 0) === 1 ? "movie" : "movies"}
+          </span>
+          <button
+            className="share-panel__close"
+            type="button"
+            aria-label="Close share panel"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <label className="share-collection-selector">
+          <span>Share collection</span>
+          <select
+            value={selectedList?.title || ""}
+            onChange={(event) => setSelectedListTitle(event.target.value)}
+            disabled={lists.length === 0}
+          >
+            {lists.length === 0 ? (
+              <option value="">No movie lists</option>
+            ) : (
+              lists.map((list) => (
+                <option key={list.title} value={list.title}>
+                  {list.title}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+
+        {selectedList?.movies.length ? (
+            <div className="share-panel__games movie-share-cards">
+            {selectedList.movies.map((movie) => (
+              <article className="share-game-card movie-share-card" key={movie.id}>
+                <img
+                  src={
+                    movie.poster_path
+                      ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
+                      : fallbackMovieImage
+                  }
+                  alt={`${movie.title} poster`}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackMovieImage;
+                  }}
+                />
+                <div className="share-game-card__content">
+                  <h3>{movie.title}</h3>
+                  <p>{movie.release_date || "Release date unknown"}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="share-panel__empty">
+            <h3>This list is empty</h3>
+            <p>Add movies from Discover before sharing this list.</p>
+          </div>
+        )}
+
+        <div className="share-panel__actions">
+          <button
+            className="share-panel__download"
+            type="button"
+            disabled={!selectedList || selectedList.movies.length === 0}
+            onClick={() => downloadMovieListHtml(selectedList)}
+          >
+            Download HTML
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
