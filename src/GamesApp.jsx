@@ -298,7 +298,7 @@ export default function GamesApp() {
           setDetailsTab={setDetailsTab}
         />
       </aside>
-      <div className="App">
+      <div className={`App${detailsTab ? " has-details" : ""}`}>
         {tab == "Library" ? (
           <Library
             libraryGames={libraryGames}
