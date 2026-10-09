@@ -50,6 +50,7 @@ export default function StarRating({
           <Star
             key={i}
             full={tempRating ? tempRating >= i + 1 : defaultRating >= i + 1}
+            rating={i + 1}
             onRate={() => handleRating(i + 1)}
             onHoverIn={() => setTempRating(i + 1)}
             onHoverOut={() => setTempRating(0)}
@@ -67,17 +68,21 @@ export default function StarRating({
   );
 }
 
-function Star({ onRate, full, onHoverIn, onHoverOut, color, size }) {
+function Star({ onRate, rating, full, onHoverIn, onHoverOut, color, size }) {
   const starStyle = {
     width: `${size}px`,
     height: `${size}px`,
     display: "block",
+    padding: 0,
+    border: 0,
+    background: "transparent",
     cursor: "pointer",
   };
 
   return (
-    <span
-      role="button"
+    <button
+      type="button"
+      aria-label={`Set rating to ${rating} star${rating === 1 ? "" : "s"}`}
       style={starStyle}
       onClick={onRate}
       onMouseEnter={onHoverIn}
@@ -107,7 +112,7 @@ function Star({ onRate, full, onHoverIn, onHoverOut, color, size }) {
           />
         </svg>
       )}
-    </span>
+    </button>
   );
 }
 

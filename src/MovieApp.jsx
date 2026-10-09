@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useEffect } from "react";
 import { getMovies } from "./moviesApi.js";
+import StarRating from "./StarRating.jsx";
 import fallbackMovieImage from "./assets/No-Image-Placeholder-Light.png";
 
 function escapeHtml(value = "") {
@@ -17,23 +18,57 @@ function escapeHtml(value = "") {
   );
 }
 
-function downloadMovieListHtml(list) {
-  const movies = list.movies
+function downloadMovieListHtml(list, userRating = {}) {
+  const cards = list.movies
     .map(
-      (movie) => `
-        <article class="movie-card">
+      (movie, index) => `
+        <article class="movie-card" tabindex="0">
           <img src="${escapeHtml(
             movie.poster_path
               ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
               : fallbackMovieImage,
           )}" alt="${escapeHtml(movie.title)} poster">
           <div class="movie-info">
+            <span class="movie-number">${String(index + 1).padStart(2, "0")}</span>
             <h2>${escapeHtml(movie.title)}</h2>
             <p>${escapeHtml(movie.release_date || "Release date unknown")}</p>
-            <p>${escapeHtml(movie.overview || "No overview available.")}</p>
           </div>
         </article>`,
     )
+    .join("");
+  const detailsPanels = list.movies
+    .map((movie, index) => {
+      const rating = Math.min(
+        10,
+        Math.max(0, Math.trunc(Number(userRating[movie.id]) || 0)),
+      );
+      return `
+        <section class="details-panel" id="details-${index}" hidden>
+          <button class="details-back" type="button" data-close-details>← Back to list</button>
+          <img class="details-image" src="${escapeHtml(
+            movie.poster_path
+              ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+              : fallbackMovieImage,
+          )}" alt="${escapeHtml(movie.title)} poster">
+          <div class="details-content">
+            <p class="eyebrow">Movie details</p>
+            <h2>${escapeHtml(movie.title)}</h2>
+            <p class="details-description">${escapeHtml(movie.overview || "No overview available.")}</p>
+            <div class="stats-grid">
+              <div><span>TMDB rating</span><strong>${escapeHtml(movie.vote_average ? `${Number(movie.vote_average).toFixed(1)} / 10` : "Not rated")}</strong></div>
+              <div><span>Runtime</span><strong>${escapeHtml(movie.runtime ? `${movie.runtime} min` : "Not listed")}</strong></div>
+              <div><span>Release date</span><strong>${escapeHtml(movie.release_date || "Unknown")}</strong></div>
+              <div><span>Your rating</span><strong>${rating ? `${"★".repeat(rating)} (${rating}/10)` : "Not rated"}</strong></div>
+            </div>
+            <dl class="details-list">
+              <div><dt>Genres</dt><dd>${escapeHtml(movie.genres?.map((genre) => genre.name).join(", ") || "Not listed")}</dd></div>
+              <div><dt>Original language</dt><dd>${escapeHtml(movie.original_language?.toUpperCase() || "Not listed")}</dd></div>
+              <div><dt>Original title</dt><dd>${escapeHtml(movie.original_title || movie.title)}</dd></div>
+              <div><dt>Status</dt><dd>${escapeHtml(movie.status || "Not listed")}</dd></div>
+            </dl>
+          </div>
+        </section>`;
+    })
     .join("");
   const html = `<!doctype html>
 <html lang="en">
@@ -50,13 +85,29 @@ function downloadMovieListHtml(list) {
       header p { color: #68766f; line-height: 1.5; }
       .count { color: #236b56; font-size: .85rem; font-weight: 700; }
       .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
-      .movie-card { overflow: hidden; border: 1px solid #d7e0d9; border-radius: 10px; background: white; }
+      .movie-card { overflow: hidden; border: 1px solid #d7e0d9; border-radius: 10px; background: white; cursor: pointer; }
+      .movie-card:hover, .movie-card:focus-visible { outline: 3px solid #236b5633; outline-offset: 3px; }
       .movie-card img { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #dfe9e1; }
       .movie-info { padding: 12px; }
+      .movie-number { color: #d06b42; font-size: .7rem; font-weight: 700; letter-spacing: .1em; }
       .movie-info h2 { margin: 0 0 8px; font-size: 1rem; }
       .movie-info p { color: #68766f; font-size: .82rem; line-height: 1.5; }
+      .details-panel { overflow: hidden; margin-top: 24px; border: 1px solid #d5ddd6; border-radius: 12px; background: #fff; box-shadow: 0 18px 40px #26392f18; }
+      .details-back { margin: 16px 16px 0; padding: 9px 12px; border: 1px solid #cbd5cd; border-radius: 5px; background: #fff; color: #236b56; cursor: pointer; font-weight: 700; }
+      .details-image { display: block; width: 100%; height: 260px; margin-top: 16px; object-fit: cover; }
+      .details-content { padding: 24px; }
+      .eyebrow { margin: 0 0 10px; color: #236b56; font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+      .details-content h2 { margin: 0 0 14px; font-size: 1.8rem; }
+      .details-description { max-width: 780px; color: #586660; font-size: .92rem; line-height: 1.6; }
+      .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; padding: 16px 0; border-top: 1px solid #e0e6e1; border-bottom: 1px solid #e0e6e1; }
+      .stats-grid span { display: block; color: #718078; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .stats-grid strong { display: block; margin-top: 5px; font-size: .9rem; }
+      .details-list { margin: 0; }
+      .details-list div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid #edf0ed; }
+      dt { color: #718078; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+      dd { margin: 0; color: #586660; font-size: .78rem; line-height: 1.35; }
       footer { margin-top: 32px; color: #718078; text-align: center; font-size: .8rem; }
-      @media (max-width: 480px) { .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .movie-info { padding: 9px; } }
+      @media (max-width: 600px) { .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .movie-info { padding: 9px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .details-content { padding: 16px; } .details-image { height: 180px; } }
     </style>
   </head>
   <body>
@@ -68,9 +119,31 @@ function downloadMovieListHtml(list) {
           list.movies.length === 1 ? "movie" : "movies"
         }</span>
       </header>
-      <section class="movie-grid">${movies}</section>
+      <section class="movie-grid">${cards}</section>
+      <div id="details-container">${detailsPanels}</div>
       <footer>Shared from VibeShelf</footer>
     </main>
+    <script>
+      const cards = document.querySelectorAll(".movie-card");
+      const panels = document.querySelectorAll(".details-panel");
+      cards.forEach((card, index) => {
+        card.addEventListener("click", () => openDetails(index));
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDetails(index); }
+        });
+      });
+      function openDetails(index) {
+        document.querySelector(".movie-grid").hidden = true;
+        panels.forEach((panel, panelIndex) => { panel.hidden = panelIndex !== index; });
+        requestAnimationFrame(() => panels[index].scrollIntoView({ behavior: "smooth", block: "start" }));
+      }
+      document.querySelectorAll("[data-close-details]").forEach((button) => {
+        button.addEventListener("click", () => {
+          panels.forEach((panel) => { panel.hidden = true; });
+          document.querySelector(".movie-grid").hidden = false;
+        });
+      });
+    </script>
   </body>
 </html>`;
   const objectUrl = URL.createObjectURL(
@@ -97,6 +170,9 @@ export default function MovieApp() {
   const [order, setOrder] = useState("desc");
   const [query, setQuery] = useState("");
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [userRating, setUserRating] = useState(
+    () => JSON.parse(localStorage.getItem("movieUserRating")) || {},
+  );
   const [lists, setLists] = useState(() => {
     const savedMovieLists = JSON.parse(localStorage.getItem("movieLists"));
     if (Array.isArray(savedMovieLists)) {
@@ -129,6 +205,10 @@ export default function MovieApp() {
   useEffect(() => {
     localStorage.setItem("movieLists", JSON.stringify(lists));
   }, [lists]);
+
+  useEffect(() => {
+    localStorage.setItem("movieUserRating", JSON.stringify(userRating));
+  }, [userRating]);
 
   function handleAddToList(listTitle, movie) {
     if (
@@ -221,49 +301,55 @@ export default function MovieApp() {
         </button>
       </nav>
 
-      {selectedMovie && (
-        <MovieDetails
-          movie={selectedMovie}
-          onClose={() => setSelectedMovie(null)}
-        />
-      )}
-
-      {activeView === "discover" ? (
-        <>
-          <SearchBar
-            setSort={setSort}
-            setOrder={setOrder}
-            sort={sort}
-            order={order}
-            setPage={setPage}
-            setMovies={setMovies}
-            setQuery={setQuery}
-            query={query}
+      <div className={`movie-workspace${selectedMovie ? " has-details" : ""}`}>
+        <div className="movie-main-content">
+          {activeView === "discover" ? (
+            <>
+              <SearchBar
+                setSort={setSort}
+                setOrder={setOrder}
+                sort={sort}
+                order={order}
+                setPage={setPage}
+                setMovies={setMovies}
+                setQuery={setQuery}
+                query={query}
+              />
+              <MoviesList
+                movies={movies}
+                setMovies={setMovies}
+                page={page}
+                setPage={setPage}
+                sort={sort}
+                order={order}
+                query={query}
+                lists={lists}
+                onAddToList={handleAddToList}
+                setShowAddList={setShowAddList}
+                setSelectedMovie={setSelectedMovie}
+              />
+            </>
+          ) : (
+            <Lists
+              lists={lists}
+              setLists={setLists}
+              setShowAddList={setShowAddList}
+              setSelectedMovie={setSelectedMovie}
+              onDeleteList={handleDeleteList}
+              onDeleteListItem={handleDeleteListItem}
+              onOpenShare={handleOpenShare}
+            />
+          )}
+        </div>
+        {selectedMovie && (
+          <MovieDetails
+            movie={selectedMovie}
+            userRating={userRating}
+            setUserRating={setUserRating}
+            onClose={() => setSelectedMovie(null)}
           />
-          <MoviesList
-            movies={movies}
-            setMovies={setMovies}
-            page={page}
-            setPage={setPage}
-            sort={sort}
-            order={order}
-            query={query}
-            lists={lists}
-            onAddToList={handleAddToList}
-            setShowAddList={setShowAddList}
-            setSelectedMovie={setSelectedMovie}
-          />
-        </>
-      ) : (
-        <Lists
-          lists={lists}
-          setShowAddList={setShowAddList}
-          setSelectedMovie={setSelectedMovie}
-          onDeleteList={handleDeleteList}
-          onDeleteListItem={handleDeleteListItem}
-          onOpenShare={handleOpenShare}
-        />
-      )}
+        )}
+      </div>
       {showAddList && (
         <AddList
           setShowAddList={setShowAddList}
@@ -275,6 +361,7 @@ export default function MovieApp() {
         <MovieSharePanel
           lists={lists}
           initialListTitle={shareListTitle}
+          userRating={userRating}
           onClose={() => setShowSharePanel(false)}
         />
       )}
@@ -335,6 +422,8 @@ function MoviesList({
     return () => controller.abort();
   }, [page, sort, order, query, retryCount, setMovies]);
 
+  const skeletonCards = Array.from({ length: 8 }, (_, index) => index);
+
   return (
     <section className="movie-library">
       <header className="movie-library-heading">
@@ -347,13 +436,30 @@ function MoviesList({
         </span>
       </header>
 
-      {movies.length > 0 ? (
+      {loading && movies.length === 0 ? (
+        <div className="movie-grid skeleton-grid" aria-label="Loading movies">
+          {skeletonCards.map((key) => (
+            <div className="skeleton-card movie-skeleton-card" key={key}>
+              <div className="skeleton-shimmer" />
+              <div className="skeleton-figure" />
+              <div className="skeleton-body">
+                <div className="skeleton-line skeleton-line-short" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line skeleton-line-medium" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : movies.length > 0 ? (
         <div className="movie-grid">
           {movies.map((movie) => (
             <article
               className="movie-card"
               key={movie.id}
               onClick={() => setSelectedMovie(movie)}
+              onMouseLeave={(event) =>
+                event.currentTarget.querySelector(":focus")?.blur()
+              }
             >
               <div
                 className="flyout"
@@ -586,7 +692,7 @@ function SearchBar({
   );
 }
 
-function MovieDetails({ movie, onClose }) {
+function MovieDetails({ movie, onClose, userRating, setUserRating }) {
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
   const [movieDetails, setMovieDetails] = useState(movie);
   const [loading, setLoading] = useState(true);
@@ -666,6 +772,22 @@ function MovieDetails({ movie, onClose }) {
           {movieDetails.overview || "No overview is available for this movie."}
         </p>
 
+        <div className="movie-personal-rating">
+          <span className="movie-rating-label">Your rating</span>
+          <StarRating
+            maxRating={10}
+            size={22}
+            className="movie-star-rating"
+            defaultRating={userRating[movie.id] || 0}
+            onSetRating={(rating) =>
+              setUserRating((previousRatings) => ({
+                ...previousRatings,
+                [movie.id]: rating,
+              }))
+            }
+          />
+        </div>
+
         <div className="movie-details-stats">
           <div>
             <span>TMDB rating</span>
@@ -730,10 +852,57 @@ function Lists({
   lists,
   setShowAddList,
   setSelectedMovie,
+  setLists,
   onDeleteList,
   onDeleteListItem,
   onOpenShare,
 }) {
+  const [draggedMovieId, setDraggedMovieId] = useState(null);
+  const [draggedFromList, setDraggedFromList] = useState(null);
+
+  function handleDrop(targetListTitle) {
+    if (draggedMovieId == null || !draggedFromList) return;
+
+    setLists((previousLists) => {
+      const sourceList = previousLists.find(
+        (list) => list.title === draggedFromList,
+      );
+      const targetList = previousLists.find(
+        (list) => list.title === targetListTitle,
+      );
+      const movieToMove = sourceList?.movies.find(
+        (movie) => movie.id === draggedMovieId,
+      );
+
+      if (
+        !sourceList ||
+        !targetList ||
+        !movieToMove ||
+        draggedFromList === targetListTitle ||
+        targetList.movies.some((movie) => movie.id === draggedMovieId)
+      ) {
+        return previousLists;
+      }
+
+      return previousLists.map((list) => {
+        if (list.title === draggedFromList) {
+          return {
+            ...list,
+            movies: list.movies.filter(
+              (movie) => movie.id !== draggedMovieId,
+            ),
+          };
+        }
+        if (list.title === targetListTitle) {
+          return { ...list, movies: [...list.movies, movieToMove] };
+        }
+        return list;
+      });
+    });
+    setDraggedMovieId(null);
+    setDraggedFromList(null);
+  }
+
   return (
     <main className="movie-lists-area">
       <header className="movie-lists-header">
@@ -767,7 +936,12 @@ function Lists({
         </div>
       ) : (
         lists.map((list) => (
-          <section className="list-panel movie-list-panel" key={list.title}>
+          <section
+            className="list-panel movie-list-panel"
+            key={list.title}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={() => handleDrop(list.title)}
+          >
             <div className="movie-list-heading">
               <h2>{list.title}</h2>
               <button
@@ -784,7 +958,28 @@ function Lists({
             {list.movies.length > 0 ? (
               <div className="movie-list-items">
                 {list.movies.map((movie) => (
-                  <article className="movie-list-item" key={movie.id}>
+                  <article
+                    className={
+                      draggedMovieId === movie.id
+                        ? "movie-list-item dragging"
+                        : "movie-list-item"
+                    }
+                    key={movie.id}
+                    draggable
+                    onDragStart={() => {
+                      setDraggedMovieId(movie.id);
+                      setDraggedFromList(list.title);
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.stopPropagation();
+                      handleDrop(list.title);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedMovieId(null);
+                      setDraggedFromList(null);
+                    }}
+                  >
                     <button
                       className="movie-list-item-details"
                       type="button"
@@ -831,7 +1026,7 @@ function Lists({
   );
 }
 
-function MovieSharePanel({ lists, initialListTitle, onClose }) {
+function MovieSharePanel({ lists, initialListTitle, userRating, onClose }) {
   const [selectedListTitle, setSelectedListTitle] = useState(
     initialListTitle || lists[0]?.title || "",
   );
@@ -917,7 +1112,7 @@ function MovieSharePanel({ lists, initialListTitle, onClose }) {
             className="share-panel__download"
             type="button"
             disabled={!selectedList || selectedList.movies.length === 0}
-            onClick={() => downloadMovieListHtml(selectedList)}
+            onClick={() => downloadMovieListHtml(selectedList, userRating)}
           >
             Download HTML
           </button>

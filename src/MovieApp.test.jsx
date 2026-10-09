@@ -138,4 +138,49 @@ describe("MovieApp", () => {
     });
     expect(screen.getByText("This list is empty")).toBeTruthy();
   });
+
+  it("saves a personal movie rating and places details on the right", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<MovieApp />);
+
+    await user.click(await screen.findByText("Sample Movie"));
+
+    expect(container.querySelector(".movie-workspace.has-details")).toBeTruthy();
+    expect(await screen.findByText("Your rating")).toBeTruthy();
+
+    fireEvent.click(
+      container.querySelectorAll(".movie-star-rating button")[4],
+    );
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("movieUserRating"))).toEqual({
+        "101": 5,
+      }),
+    );
+  });
+
+  it("moves movies between lists by dragging list items", async () => {
+    localStorage.setItem(
+      "movieLists",
+      JSON.stringify([
+        { title: "Source", description: "", movies: [movie] },
+        { title: "Target", description: "", movies: [] },
+      ]),
+    );
+    const user = userEvent.setup();
+    render(<MovieApp />);
+
+    await user.click(screen.getByRole("button", { name: "My Lists" }));
+    const sourceItem = document.querySelector(".movie-list-item");
+    const targetList = screen.getByText("Target").closest("section");
+
+    fireEvent.dragStart(sourceItem);
+    fireEvent.dragOver(targetList);
+    fireEvent.drop(targetList);
+
+    await waitFor(() => {
+      const savedLists = JSON.parse(localStorage.getItem("movieLists"));
+      expect(savedLists[0].movies).toEqual([]);
+      expect(savedLists[1].movies).toEqual([movie]);
+    });
+  });
 });

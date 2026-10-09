@@ -20,8 +20,8 @@ function escapeHtml(value = "") {
   );
 }
 
-function downloadLibraryHtml(games, personalData = {}, collection = {}) {
-  const collectionTitle = collection.title || "My Game Library";
+function downloadFavoritesHtml(games, personalData = {}, collection = {}) {
+  const collectionTitle = collection.title || "My Game Favorites";
   const collectionDescription =
     collection.description || "A collection of games worth playing.";
   const {
@@ -48,7 +48,7 @@ function downloadLibraryHtml(games, personalData = {}, collection = {}) {
     .map(
       (game, index) => `
     <section class="details-panel" id="details-${index}" hidden>
-      <button class="details-back" type="button" data-close-details>← Back to library</button>
+      <button class="details-back" type="button" data-close-details>← Back to favorites</button>
       <img class="details-image" src="${escapeHtml(game.background_image || fallbackGameImage)}" alt="${escapeHtml(game.name)} cover">
       <div class="details-content">
         <p class="eyebrow">Game details</p>
@@ -171,7 +171,7 @@ function downloadLibraryHtml(games, personalData = {}, collection = {}) {
     collectionTitle
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "game-collection";
+      .replace(/(^-|-$)/g, "") || "game-favorites";
   link.download = `${filename}.html`;
   document.body.appendChild(link);
   link.click();
@@ -185,13 +185,18 @@ export default function GamesApp() {
   const [detailsTab, setDetailsTab] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [games, setGames] = useState([]);
-  const localLibraryGames =
-    JSON.parse(localStorage.getItem("libraryGames")) || [];
-  const [libraryGames, setLibraryGames] = useState(localLibraryGames);
+  const storedFavorites =
+    JSON.parse(localStorage.getItem("favoriteGames")) ||
+    JSON.parse(localStorage.getItem("libraryGames")) ||
+    [];
+  const localFavoriteGames = Array.isArray(storedFavorites[0])
+    ? storedFavorites.flat()
+    : storedFavorites;
+  const [favoriteGames, setFavoriteGames] = useState(localFavoriteGames);
   const [tab, setTab] = useState("GamesList");
   const [showAddList, setShowAddList] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
-  const [shareCollection, setShareCollection] = useState("library");
+  const [shareCollection, setShareCollection] = useState("favorites");
   const localLists = JSON.parse(localStorage.getItem("lists")) || [];
   const [lists, setLists] = useState(localLists);
   const [errorMessage, setErrorMessage] = useState("");
@@ -213,8 +218,8 @@ export default function GamesApp() {
 
   useEffect(() => {
     localStorage.setItem("lists", JSON.stringify(lists));
-    localStorage.setItem("libraryGames", JSON.stringify(libraryGames));
-  }, [lists, libraryGames]);
+    localStorage.setItem("favoriteGames", JSON.stringify(favoriteGames));
+  }, [lists, favoriteGames]);
 
   useEffect(() => {
     localStorage.setItem("userRating", JSON.stringify(userRating));
@@ -282,11 +287,10 @@ export default function GamesApp() {
     );
   }
 
-  function handleDeleteLibraryGame(gameId) {
-    setLibraryGames((previousGames) =>
-      previousGames.filter((libraryGame) => libraryGame.id !== gameId),
+  function handleDeleteFavoriteGame(gameId) {
+    setFavoriteGames((previousGames) =>
+      previousGames.filter((favoriteGame) => favoriteGame.id !== gameId),
     );
-    localStorage.setItem("libraryGames", JSON.stringify([libraryGames]));
   }
 
   return (
@@ -299,17 +303,16 @@ export default function GamesApp() {
         />
       </aside>
       <div className={`App${detailsTab ? " has-details" : ""}`}>
-        {tab == "Library" ? (
-          <Library
-            libraryGames={libraryGames}
-            setLibraryGames={setLibraryGames}
+        {tab == "Favorites" ? (
+          <Favorites
+            favoriteGames={favoriteGames}
             showGameDetails={showGameDetails}
-            onDeleteLibraryGame={handleDeleteLibraryGame}
+            onDeleteFavoriteGame={handleDeleteFavoriteGame}
             lists={lists}
             onAddToList={handleAddToList}
             setShowAddList={setShowAddList}
             onOpenShare={() => {
-              setShareCollection("library");
+              setShareCollection("favorites");
               setShowSharePanel(true);
             }}
           />
@@ -319,8 +322,8 @@ export default function GamesApp() {
             showGameDetails={showGameDetails}
             games={games}
             setGames={setGames}
-            setLibraryGames={setLibraryGames}
-            libraryGames={libraryGames}
+            setFavoriteGames={setFavoriteGames}
+            favoriteGames={favoriteGames}
             lists={lists}
             onAddToList={handleAddToList}
             onAddList={handleAddList}
@@ -355,7 +358,7 @@ export default function GamesApp() {
             onDeleteList={handleDeleteList}
             onOpenShare={(collectionTitle) => {
               setShareCollection(
-                collectionTitle || lists[0]?.title || "library",
+                collectionTitle || lists[0]?.title || "favorites",
               );
               setShowSharePanel(true);
             }}
@@ -370,7 +373,7 @@ export default function GamesApp() {
         )}
         {showSharePanel && (
           <SharePanel
-            libraryGames={libraryGames}
+            favoriteGames={favoriteGames}
             lists={lists}
             initialCollection={shareCollection}
             setShowSharePanel={setShowSharePanel}
@@ -402,10 +405,10 @@ function NavBar({ currentTab, setTab, setDetailsTab }) {
       </button>
       <button
         type="button"
-        className={currentTab === "Library" ? "active" : ""}
-        onClick={() => changeTab("Library")}
+        className={currentTab === "Favorites" ? "active" : ""}
+        onClick={() => changeTab("Favorites")}
       >
-        Library
+        Favorites
       </button>
       <button
         type="button"
@@ -421,8 +424,8 @@ function NavBar({ currentTab, setTab, setDetailsTab }) {
 function GamesList({
   games,
   setGames,
-  setLibraryGames,
-  libraryGames,
+  setFavoriteGames,
+  favoriteGames,
   showGameDetails,
   onAddToList,
   lists,
@@ -478,11 +481,13 @@ function GamesList({
     return () => controller.abort();
   }, [page, ordering, searchQuery, sort, setGames]);
 
+  const skeletonCards = Array.from({ length: 8 }, (_, index) => index);
+
   return (
     <main className="games-area">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Your games library</p>
+          <p className="eyebrow">Your game favorites</p>
           <h1>Discover something great</h1>
         </div>
         <span className="game-count">{games.length} games</span>
@@ -498,92 +503,116 @@ function GamesList({
         sort={sort}
       />
 
-      <div className="game-grid">
-        {games.map((game, index) => {
-          const isInLibrary = libraryGames.some(
-            (libraryGame) => libraryGame.id === game.id,
-          );
-          const gameLists = lists
-            .filter((list) =>
-              list.games.some((listGame) => listGame.id === game.id),
-            )
-            .map((list) => list.title);
+      {loading && games.length === 0 ? (
+        <div className="game-grid skeleton-grid" aria-label="Loading games">
+          {skeletonCards.map((key) => (
+            <div className="skeleton-card game-skeleton-card" key={key}>
+              <div className="skeleton-shimmer" />
+              <div className="skeleton-figure skeleton-figure-large" />
+              <div className="skeleton-body">
+                <div className="skeleton-line skeleton-line-short" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line skeleton-line-medium" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="game-grid">
+          {games.map((game, index) => {
+            const isFavorite = favoriteGames.some(
+              (favoriteGame) => favoriteGame.id === game.id,
+            );
+            const gameLists = lists
+              .filter((list) =>
+                list.games.some((listGame) => listGame.id === game.id),
+              )
+              .map((list) => list.title);
 
-          return (
-            <article
-              className="game-card"
-              key={game.id}
-              onClick={() => showGameDetails(game.id)}
-            >
-              <button
-                className={`add-game-button${isInLibrary ? " is-in-library" : ""}`}
-                type="button"
-                aria-label={
-                  isInLibrary
-                    ? `${game.name} is already in your library`
-                    : `Add ${game.name}`
+            return (
+              <article
+                className="game-card"
+                key={game.id}
+                onClick={() => showGameDetails(game.id)}
+                onMouseLeave={(event) =>
+                  event.currentTarget.querySelector(":focus")?.blur()
                 }
-                onClick={(event) => {
-                  event.stopPropagation();
-                  event.currentTarget.blur();
-
-                  if (isInLibrary) {
-                    return;
+              >
+                <button
+                  className={`add-game-button${isFavorite ? " is-favorite" : ""}`}
+                  type="button"
+                  aria-label={
+                    isFavorite
+                      ? `Remove ${game.name} from favorites`
+                      : `Add ${game.name} to favorites`
                   }
+                  aria-pressed={isFavorite}
+                  title={
+                    isFavorite
+                      ? `Remove ${game.name} from favorites`
+                      : `Add ${game.name} to favorites`
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    event.currentTarget.blur();
 
-                  setLibraryGames((previousGames) => [...previousGames, game]);
-
-                  localStorage.setItem(
-                    "libraryGames",
-                    JSON.stringify([libraryGames]),
-                  );
-                }}
-              >
-                {isInLibrary ? "In library" : "+"}
-              </button>
-              <div
-                className="flyout"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button type="button">Add to List</button>
-
-                <AddToListFlyout
-                  lists={lists}
-                  onAddToList={onAddToList}
-                  game={game}
-                  setShowAddList={setShowAddList}
-                />
-              </div>
-
-              <img
-                src={game.background_image || fallbackGameImage}
-                alt={game.name}
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = fallbackGameImage;
-                }}
-              />
-              <div className="game-card-content">
-                <span className="card-number">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div
-                  className="game-list-tags"
-                  aria-label="Lists containing this game"
+                    setFavoriteGames((previousGames) =>
+                      previousGames.some(
+                        (favoriteGame) => favoriteGame.id === game.id,
+                      )
+                        ? previousGames.filter(
+                            (favoriteGame) => favoriteGame.id !== game.id,
+                          )
+                        : [...previousGames, game],
+                    );
+                  }}
                 >
-                  {gameLists.map((listTitle) => (
-                    <span className="game-list-tag" key={listTitle}>
-                      {listTitle}
-                    </span>
-                  ))}
+                  {isFavorite ? "★" : "☆"}
+                </button>
+                <div
+                  className="flyout"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button type="button">Add to List</button>
+
+                  <AddToListFlyout
+                    lists={lists}
+                    onAddToList={onAddToList}
+                    game={game}
+                    setShowAddList={setShowAddList}
+                  />
                 </div>
-                <h2>{game.name}</h2>
-                <p>{game.released || "Release date unknown"}</p>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+
+                <img
+                  src={game.background_image || fallbackGameImage}
+                  alt={game.name}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackGameImage;
+                  }}
+                />
+                <div className="game-card-content">
+                  <span className="card-number">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div
+                    className="game-list-tags"
+                    aria-label="Lists containing this game"
+                  >
+                    {gameLists.map((listTitle) => (
+                      <span className="game-list-tag" key={listTitle}>
+                        {listTitle}
+                      </span>
+                    ))}
+                  </div>
+                  <h2>{game.name}</h2>
+                  <p>{game.released || "Release date unknown"}</p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       <button className="load-more" onClick={handleLoadMore} disabled={loading}>
         {loading ? "Loading..." : "Load more games"}
@@ -688,7 +717,7 @@ function GameDetails({
   return (
     <aside className="details-panel">
       <button className="back-button" onClick={() => setDetailsTab(false)}>
-        ← Back to library
+        ← Back to favorites
       </button>
       <img
         className="details-image"
@@ -765,9 +794,9 @@ function GameDetails({
   );
 }
 
-function Library({
-  libraryGames,
-  onDeleteLibraryGame,
+function Favorites({
+  favoriteGames,
+  onDeleteFavoriteGame,
   showGameDetails,
   lists,
   onAddToList,
@@ -779,7 +808,7 @@ function Library({
 
   const selectedListGames =
     selectedList === "all"
-      ? libraryGames
+      ? favoriteGames
       : lists.find((list) => list.title === selectedList)?.games || [];
 
   const filteredGames = selectedListGames.filter((game) =>
@@ -798,15 +827,15 @@ function Library({
           className="library-share-button"
           type="button"
           onClick={() =>
-            onOpenShare(selectedList === "all" ? "library" : selectedList)
+            onOpenShare(selectedList === "all" ? "favorites" : selectedList)
           }
         >
           <span aria-hidden="true">↗</span>
-          Share library
+          Share favorites
         </button>
         <div>
           <p className="eyebrow">Your collection</p>
-          <h1>My Library</h1>
+          <h1>My Favorites</h1>
         </div>
         <select
           className="library-filter"
@@ -822,7 +851,7 @@ function Library({
         </select>
         <input
           className="library-search"
-          placeholder="Search your library..."
+          placeholder="Search your favorites..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -830,7 +859,7 @@ function Library({
           className="clear-search-button"
           type="button"
           onClick={() => setSearchQuery("")}
-          aria-label="Clear library search"
+          aria-label="Clear favorites search"
         >
           Clear
         </button>
@@ -839,7 +868,7 @@ function Library({
 
       {filteredGames.length === 0 ? (
         <div className="empty-library">
-          <h2>Your library is empty</h2>
+          <h2>Your favorites are empty</h2>
           <p>Add games from the home page and they'll appear here.</p>
         </div>
       ) : (
@@ -849,6 +878,9 @@ function Library({
               className="library-card"
               key={game.id}
               onClick={() => showGameDetails(game.id)}
+              onMouseLeave={(event) =>
+                event.currentTarget.querySelector(":focus")?.blur()
+              }
             >
               <div
                 className="flyout"
@@ -880,7 +912,7 @@ function Library({
                   className="remove-game-button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onDeleteLibraryGame(game.id);
+                    onDeleteFavoriteGame(game.id);
                   }}
                 >
                   Remove
@@ -1229,7 +1261,7 @@ function AddToListFlyout({ lists, onAddToList, game, setShowAddList }) {
 
 function SharePanel({
   setShowSharePanel,
-  libraryGames,
+  favoriteGames,
   lists,
   initialCollection,
   userRating,
@@ -1239,16 +1271,18 @@ function SharePanel({
   note,
 }) {
   const [selectedCollection, setSelectedCollection] = useState(
-    initialCollection || "library",
+    initialCollection || "favorites",
   );
   const selectedList = lists.find((list) => list.title === selectedCollection);
   const collectionGames =
-    selectedCollection === "library" ? libraryGames : selectedList?.games || [];
+    selectedCollection === "favorites"
+      ? favoriteGames
+      : selectedList?.games || [];
   const collection =
-    selectedCollection === "library"
+    selectedCollection === "favorites"
       ? {
-          title: "My Game Library",
-          description: "Share your library with friends and fellow gamers.",
+          title: "My Game Favorites",
+          description: "Share your favorite games with friends and fellow gamers.",
         }
       : {
           title: selectedList?.title || "Shared List",
@@ -1292,7 +1326,7 @@ function SharePanel({
             value={selectedCollection}
             onChange={(event) => setSelectedCollection(event.target.value)}
           >
-            <option value="library">My library</option>
+            <option value="favorites">My favorites</option>
             {lists.map((list) => (
               <option key={list.title} value={list.title}>
                 {list.title}
@@ -1303,7 +1337,7 @@ function SharePanel({
 
         {collectionGames.length === 0 ? (
           <div className="share-panel__empty">
-            <h3>Your library is waiting</h3>
+            <h3>Your favorites are waiting</h3>
             <p>Add a game first, then come back to share your collection.</p>
           </div>
         ) : (
@@ -1332,7 +1366,7 @@ function SharePanel({
             className="share-panel__download"
             type="button"
             onClick={() =>
-              downloadLibraryHtml(
+              downloadFavoritesHtml(
                 collectionGames,
                 {
                   userRating,
